@@ -3,6 +3,7 @@
 namespace GeneroWP\SecurityHardening;
 
 use GeneroWP\SecurityHardening\Modules\ApplicationPasswords;
+use GeneroWP\SecurityHardening\Modules\ContentSecurityPolicy;
 use GeneroWP\SecurityHardening\Modules\Filesystem;
 use GeneroWP\SecurityHardening\Modules\Headers;
 use GeneroWP\SecurityHardening\Modules\Passwords;
@@ -16,9 +17,14 @@ use GeneroWP\SecurityHardening\Modules\XmlRpc;
 class Plugin
 {
     /**
-     * Every module is unconditional and takes no configuration. Anything that
-     * needs a per-site answer belongs in that site's own mu-plugins, widening
-     * one of these from a later priority — see the README.
+     * Every module here is unconditional and takes no configuration. Anything
+     * that needs a per-site answer belongs in that site's own mu-plugins,
+     * widening one of these from a later priority — see the README.
+     *
+     * Modules that exist but are not listed are opt-in, added through the same
+     * filter that removes one. TwoFactor is the current example: it needs the
+     * two-factor plugin and locks every account out until they enrol, which is a
+     * decision a site makes rather than one a package makes for it.
      *
      * @return class-string<Module>[]
      */
@@ -27,6 +33,7 @@ class Plugin
         Rest::class,
         ApplicationPasswords::class,
         Headers::class,
+        ContentSecurityPolicy::class,
         Uploads::class,
         UserEnumeration::class,
         Passwords::class,

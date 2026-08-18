@@ -23,7 +23,14 @@ composer require generoi/wp-security-hardening
 | `Passwords` | 12-character minimum, enforced **server side** |
 | `Roles` | Pins `default_role` |
 | `Version` | Removes the generator tag; replaces `?ver=` with a site-salted token |
+| `ContentSecurityPolicy` | `base-uri`, `frame-ancestors`, `object-src`, `upgrade-insecure-requests` on admin and login |
 | `Filesystem` | Stops WordPress rewriting `.htaccess` |
+
+Off by default, opt in with the modules filter:
+
+| Module | Control |
+|---|---|
+| `TwoFactor` | Requires two-factor enrolment before any capability but `read` |
 
 ## Three things worth knowing before you change anything
 
@@ -44,6 +51,28 @@ outright breaks every save of an existing post. See `tests/Integration/RestTest.
 current user is still being resolved; a capability check re-enters that through
 any `user_has_cap` callback and recurses until PHP runs out of memory. It reads
 `$user->allcaps`, which `WP_User::get_role_caps()` builds with no filters.
+
+## Turning a module on or off
+
+```php
+add_filter('wp_security_hardening_modules', fn ($modules) => [
+    ...$modules,
+    \GeneroWP\SecurityHardening\Modules\TwoFactor::class,
+]);
+```
+
+`TwoFactor` is off by default because it needs the two-factor plugin and locks
+every account out of everything but their profile until they enrol — a decision a
+site makes, not a package. Without that plugin active it is inert rather than
+locking people out of a site with no way to enrol.
+
+The admin and login CSP carries only directives that need no per-site
+verification. It deliberately says nothing about scripts: wp-admin cannot take a
+nonce policy (core prints un-nonced inline scripts on every screen, and the media
+library needs `eval`), and the nonce-free alternative blocks the external
+`<script src>` that plugins legitimately use on their own screens. Enforcing that
+safely needs a per-site plugin sweep, which is what this package does not do. A
+site wanting more can append through `wp_security_hardening_csp_directives`.
 
 ## Widening a control for one site
 
