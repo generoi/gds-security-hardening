@@ -1,0 +1,16 @@
+{
+    "core": null,
+    "plugins": [
+        "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip"
+    ],
+    "mappings": {
+        "wp-content/mu-plugins/wp-security-hardening": "."
+    },
+    "env": {
+        "tests": {
+            "mappings": {
+                "wp-content/mu-plugins/wp-security-hardening": "."
+            }
+        }
+    }
+}
