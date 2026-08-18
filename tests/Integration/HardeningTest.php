@@ -3,6 +3,7 @@
 namespace GeneroWP\SecurityHardening\Tests\Integration;
 
 use GeneroWP\SecurityHardening\Modules\Passwords;
+use GeneroWP\SecurityHardening\Modules\UserEnumeration;
 use WP_UnitTestCase;
 
 class HardeningTest extends WP_UnitTestCase
@@ -51,7 +52,7 @@ class HardeningTest extends WP_UnitTestCase
 
     public function test_a_long_enough_password_is_accepted(): void
     {
-        $this->assertTrue((new Passwords)->validate(str_repeat('a', Passwords::MINIMUM_LENGTH)));
+        $this->assertNull((new Passwords)->validate(str_repeat('a', Passwords::MINIMUM_LENGTH)));
     }
 
     /**
@@ -62,8 +63,28 @@ class HardeningTest extends WP_UnitTestCase
     public function test_author_archives_still_work_without_an_author_id_in_the_query(): void
     {
         $_SERVER['QUERY_STRING'] = '';
-        do_action('init');
+        (new UserEnumeration)->maybeDropAuthorQueryVars();
 
         $this->assertContains('author_name', apply_filters('query_vars', ['author', 'author_name']));
+    }
+
+    public function test_an_author_id_in_the_query_drops_both_author_vars(): void
+    {
+        $_SERVER['QUERY_STRING'] = 'author=1';
+        (new UserEnumeration)->maybeDropAuthorQueryVars();
+
+        $vars = apply_filters('query_vars', ['author', 'author_name', 'p']);
+
+        $this->assertNotContains('author', $vars);
+        $this->assertNotContains('author_name', $vars);
+        $this->assertContains('p', $vars);
+    }
+
+    public function test_the_static_headers_join_the_frontend_header_array(): void
+    {
+        $headers = apply_filters('wp_headers', ['Content-Type' => 'text/html'], null);
+
+        $this->assertSame('nosniff', $headers['X-Content-Type-Options']);
+        $this->assertSame('text/html', $headers['Content-Type']);
     }
 }

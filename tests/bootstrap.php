@@ -10,7 +10,6 @@
  * plugin's own validation path. A suite that mocks WordPress would be green and
  * worthless.
  */
-
 $autoload = dirname(__DIR__).'/vendor/autoload.php';
 
 if (! file_exists($autoload)) {

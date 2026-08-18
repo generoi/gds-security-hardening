@@ -58,8 +58,13 @@ class ApplicationPasswords implements Module
      * A site with an integration user below this bar widens it from its own
      * mu-plugins at a later priority rather than forking this package.
      *
+     * Core normalises $user to a WP_User and bails on a missing one before this
+     * filter runs, so the hook itself always hands over an object. The
+     * normalisation below is for direct apply_filters() callers — the test suite
+     * is one, and site-local widenings are another.
+     *
      * @param  bool  $available
-     * @param  WP_User  $user
+     * @param  WP_User|int|null  $user
      */
     public function availableForUser($available, $user): bool
     {

@@ -8,14 +8,10 @@ use WP_Error;
 /**
  * Enforce a minimum password length, server side.
  *
- * Worth stating plainly, because the fleet this replaces did not do it: removing
- * the "Confirm use of weak password" checkbox with JavaScript is not a control.
- * It hides the opt-out from the screen and changes nothing about what the server
- * accepts — disable JS, or POST directly, and a one-character password is stored.
- * The three filters below are where enforcement actually happens.
- *
- * The checkbox is removed as well, so nobody is offered an option that will be
- * rejected, but that is UX rather than security.
+ * Removing the "Confirm use of weak password" checkbox is UX, not enforcement —
+ * it changes nothing about what the server accepts. The three filters below are
+ * where enforcement happens; the checkbox is hidden as well so nobody is offered
+ * an option that will be rejected.
  */
 class Passwords implements Module
 {
@@ -30,9 +26,9 @@ class Passwords implements Module
     }
 
     /**
-     * @return WP_Error|true
+     * Null when the password is acceptable.
      */
-    public function validate(string $password)
+    public function validate(string $password): ?WP_Error
     {
         if (strlen($password) < self::MINIMUM_LENGTH) {
             return new WP_Error('password_too_short', sprintf(
@@ -42,11 +38,12 @@ class Passwords implements Module
             ));
         }
 
-        return true;
+        return null;
     }
 
     /**
      * @param  mixed  $errors
+     * @param  mixed  $user
      * @return mixed
      */
     public function validateReset($errors, $user = null)
@@ -91,7 +88,7 @@ class Passwords implements Module
         $password = sanitize_text_field(wp_unslash($_POST['pass1']));
         $result = $this->validate($password);
 
-        if (! is_wp_error($result)) {
+        if (! $result instanceof WP_Error) {
             return;
         }
 

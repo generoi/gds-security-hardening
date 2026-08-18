@@ -2,6 +2,7 @@
 
 namespace GeneroWP\SecurityHardening\Tests\Integration;
 
+use GeneroWP\SecurityHardening\Modules\Uploads;
 use WP_UnitTestCase;
 
 class UploadsTest extends WP_UnitTestCase
@@ -57,7 +58,7 @@ class UploadsTest extends WP_UnitTestCase
      */
     public function test_it_does_not_duplicate_what_core_already_removes(): void
     {
-        $module = new \GeneroWP\SecurityHardening\Modules\Uploads;
+        $module = new Uploads;
 
         $this->assertNotContains('swf', $module::RISKY_EXTENSIONS);
         $this->assertNotContains('exe', $module::RISKY_EXTENSIONS);

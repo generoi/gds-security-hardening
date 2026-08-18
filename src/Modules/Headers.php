@@ -38,7 +38,11 @@ class Headers implements Module
 
     public function register(): void
     {
-        add_action('send_headers', [$this, 'send']);
+        // The frontend goes through the filter rather than header(): WP builds an
+        // array in WP::send_headers() and sends it itself, so joining the array
+        // leaves the headers visible and adjustable to anything else filtering
+        // them, instead of being set behind their back.
+        add_filter('wp_headers', [$this, 'merge']);
 
         // Priority 11, after core's send_frame_options_header() at 10.
         add_action('admin_init', [$this, 'send'], 11);
@@ -47,6 +51,15 @@ class Headers implements Module
         // The last hook before a REST response is written, and it runs for every
         // route including the ones a site keeps public.
         add_filter('rest_pre_serve_request', [$this, 'sendForRest']);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return array<string, string>
+     */
+    public function merge($headers): array
+    {
+        return array_merge((array) $headers, self::HEADERS);
     }
 
     public function send(): void
