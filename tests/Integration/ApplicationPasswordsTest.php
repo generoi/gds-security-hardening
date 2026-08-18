@@ -60,8 +60,13 @@ class ApplicationPasswordsTest extends WP_UnitTestCase
      */
     public function test_it_does_not_recurse_when_a_plugin_hooks_user_has_cap(): void
     {
+        // Consults the current user, which is the real hazard — two-factor and
+        // role-editing plugins do exactly this. Deliberately not
+        // current_user_can(): calling that from inside user_has_cap recurses into
+        // itself regardless of what this module does, which tests the double
+        // rather than the code.
         $callback = function ($allcaps) {
-            current_user_can('read');
+            wp_get_current_user();
 
             return $allcaps;
         };

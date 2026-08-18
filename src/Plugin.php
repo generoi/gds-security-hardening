@@ -46,9 +46,35 @@ class Plugin
 
     public const FILTER_MODULES = 'gds_security_hardening_modules';
 
-    protected static bool $booted = false;
+    protected static ?self $instance = null;
 
-    public static function boot(): void
+    protected bool $booted = false;
+
+    public static function getInstance(): self
+    {
+        return self::$instance ??= new self;
+    }
+
+    /**
+     * Deferred to muplugins_loaded so the modules filter is reachable.
+     *
+     * Registering at construction time would mean only an mu-plugin sorting
+     * alphabetically before this one could add a callback to
+     * gds_security_hardening_modules, which makes the documented escape hatch
+     * depend on a filename.
+     *
+     * muplugins_loaded rather than plugins_loaded: mu-plugins are the trusted
+     * layer and cannot be deactivated from the admin, so a regular plugin should
+     * not be able to switch a security control off. Nothing registered here needs
+     * to run earlier — the one thing that must, the XML-RPC exit, is in the entry
+     * file.
+     */
+    public function __construct()
+    {
+        add_action('muplugins_loaded', [$this, 'boot']);
+    }
+
+    public function boot(): void
     {
         // Loading the entry file twice must not register everything twice.
         // Most modules are idempotent — the same filter added twice is harmless
@@ -56,11 +82,11 @@ class Plugin
         // double load is easy to arrange: a site adding its own require, or a
         // test harness that maps the package into mu-plugins and also bootstraps
         // it directly.
-        if (self::$booted) {
+        if ($this->booted) {
             return;
         }
 
-        self::$booted = true;
+        $this->booted = true;
 
         /**
          * Filters the modules that will be registered.

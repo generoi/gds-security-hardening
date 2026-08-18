@@ -50,7 +50,7 @@ class ModulesTest extends WP_UnitTestCase
     {
         $before = count($GLOBALS['wp_filter']['upload_mimes']->callbacks[9999] ?? []);
 
-        Plugin::boot();
+        Plugin::getInstance()->boot();
 
         $this->assertSame($before, count($GLOBALS['wp_filter']['upload_mimes']->callbacks[9999] ?? []));
     }

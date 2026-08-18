@@ -82,6 +82,34 @@ class TwoFactorTest extends WP_UnitTestCase
     }
 
     /**
+     * The recursion this module has to survive.
+     *
+     * Other plugins hook map_meta_cap and check capabilities from inside their
+     * callback — WooCommerce's wc_modify_map_meta_cap() calls
+     * wc_current_user_has_role(). Without a reentrancy guard, our callback asking
+     * whether the user is enrolled re-enters map_meta_cap, which re-enters ours,
+     * until PHP runs out of memory. It did: a 1GB limit exhausted after four
+     * tests in CI.
+     */
+    public function test_it_survives_another_plugin_checking_capabilities_from_map_meta_cap(): void
+    {
+        $reentrant = function (array $caps, string $cap) {
+            if ($cap !== 'read') {
+                current_user_can('read');
+            }
+
+            return $caps;
+        };
+        add_filter('map_meta_cap', $reentrant, 1, 2);
+
+        $allowed = current_user_can('manage_options');
+
+        remove_filter('map_meta_cap', $reentrant, 1);
+
+        $this->assertFalse($allowed);
+    }
+
+    /**
      * isEnrolled() runs from inside user_has_cap and map_meta_cap, and
      * _wp_get_current_user() has no reentrancy guard while $current_user is
      * empty, so it must not ask for the current user in that window.

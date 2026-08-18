@@ -28,6 +28,11 @@ class TwoFactor implements Module
      */
     public const ALLOWED_CAPABILITY = 'read';
 
+    /**
+     * Guards against re-entering the capability pipeline from inside it.
+     */
+    protected static bool $resolving = false;
+
     public function register(): void
     {
         add_action('admin_init', [$this, 'redirectToEnrolment']);
@@ -42,33 +47,49 @@ class TwoFactor implements Module
      * lookups check capabilities, so calling this from within map_meta_cap or
      * user_has_cap re-enters that pipeline from inside itself.
      *
-     * The first guard matters more than it looks. _wp_get_current_user() has no
-     * reentrancy guard (wp-includes/user.php): while $current_user is still empty
-     * it re-enters `apply_filters('determine_current_user', false)` every time it
-     * is called. So if any plugin performs a capability check during that
-     * resolution — which is exactly what a user_has_cap callback would do here —
-     * asking for the current user recurses until PHP runs out of memory. When the
-     * user is not resolved yet there is nobody to enforce against, so this
-     * reports enrolled and leaves the caps alone; enforcement happens on the
-     * checks that come after resolution.
+     * Two guards, for two different ways in.
+     *
+     * _wp_get_current_user() has no reentrancy guard (wp-includes/user.php):
+     * while $current_user is still empty it re-enters
+     * `apply_filters('determine_current_user', false)` every time it is called.
+     * When the user is not resolved yet there is nobody to enforce against, so
+     * this reports enrolled and leaves the caps alone.
+     *
+     * The static flag covers the commoner case, which the empty check does not:
+     * once the user *is* resolved, this still runs from inside map_meta_cap, and
+     * other callbacks on that same filter perform capability checks of their own.
+     * WooCommerce's wc_modify_map_meta_cap() calls wc_current_user_has_role(),
+     * and two-factor's own provider lookups check capabilities — so without the
+     * flag, map_meta_cap re-enters map_meta_cap until PHP runs out of memory.
+     * Measured: a 1GB limit exhausted after four tests once WooCommerce was
+     * loaded.
+     *
+     * Failing open while resolving is the safe direction. Enforcement happens on
+     * the outer check, which completes normally.
      *
      * @see https://github.com/Automattic/vip-go-mu-plugins/blob/develop/two-factor.php
      */
     public function isEnrolled(): bool
     {
-        if (empty($GLOBALS['current_user'])) {
+        if (empty($GLOBALS['current_user']) || self::$resolving) {
             return true;
         }
 
-        if (! is_user_logged_in()) {
-            return false;
-        }
+        self::$resolving = true;
 
-        if (! class_exists(Two_Factor_Core::class)) {
-            return true;
-        }
+        try {
+            if (! is_user_logged_in()) {
+                return false;
+            }
 
-        return Two_Factor_Core::is_user_using_two_factor();
+            if (! class_exists(Two_Factor_Core::class)) {
+                return true;
+            }
+
+            return Two_Factor_Core::is_user_using_two_factor();
+        } finally {
+            self::$resolving = false;
+        }
     }
 
     public function redirectToEnrolment(): void

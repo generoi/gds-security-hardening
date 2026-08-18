@@ -9,6 +9,13 @@ use WP_UnitTestCase;
 
 class PasswordsTest extends WP_UnitTestCase
 {
+    /**
+     * Long enough for this module, and strong enough for wordfence, which is
+     * active in the test environment and enforces its own policy — uppercase,
+     * lowercase, a symbol and a number — on the REST user routes.
+     */
+    public const STRONG_PASSWORD = 'Str0ng-Passw0rd!x9';
+
     protected Passwords $module;
 
     public function set_up(): void
@@ -118,11 +125,14 @@ class PasswordsTest extends WP_UnitTestCase
         $request = new WP_REST_Request('POST', '/wp/v2/users');
         $request->set_param('username', 'restlongpw');
         $request->set_param('email', 'restlongpw@example.test');
-        $request->set_param('password', str_repeat('a', 16));
+        $request->set_param('password', self::STRONG_PASSWORD);
 
         $response = rest_do_request($request);
 
-        $this->assertFalse($response->is_error(), 'A valid password was refused.');
+        $this->assertFalse(
+            $response->is_error(),
+            'A valid password was refused: '.wp_json_encode($response->get_data()),
+        );
         $this->assertNotFalse(username_exists('restlongpw'));
     }
 
@@ -171,7 +181,7 @@ class PasswordsTest extends WP_UnitTestCase
         }
 
         $user = get_userdata(self::factory()->user->create(['role' => 'customer']));
-        $_POST['password_1'] = str_repeat('a', 16);
+        $_POST['password_1'] = self::STRONG_PASSWORD;
         $errors = new WP_Error;
 
         do_action('validate_password_reset', $errors, $user);
