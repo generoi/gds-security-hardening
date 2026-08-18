@@ -21,7 +21,6 @@ class UserEnumeration implements Module
         // Priority 100: after every core authenticator (20 and 30) and after
         // wp_authenticate_spam_check (99).
         add_filter('authenticate', [$this, 'genericAuthenticationError'], 100, 2);
-        add_filter('login_errors', [$this, 'genericLoginError']);
         add_action('lost_password', [$this, 'alwaysRedirectLostPassword']);
     }
 
@@ -61,11 +60,17 @@ class UserEnumeration implements Module
     /**
      * Do not reveal whether an account exists to anything that calls wp_signon().
      *
-     * The login_errors filter below is not enough on its own: core applies it in
-     * exactly one place, wp-login.php, so every other login form in WordPress
-     * renders core's own message. And core's message names the account —
+     * Normalised at the source rather than at render. The login_errors filter is
+     * applied in exactly one place, wp-login.php, so every other login form in
+     * WordPress renders core's own message — and core's message names the
+     * account:
      * "The username <strong>bob</strong> is not registered on this site"
      * (wp-includes/user.php:185-188).
+     *
+     * Filtering login_errors as well would be redundant, and harmful: that filter
+     * receives the fully-rendered message, so replacing it wholesale discards
+     * whatever another plugin put there — limit-login-attempts-reloaded's
+     * "N attempts remaining" among them.
      *
      * WooCommerce is the case that matters here. Its my-account form calls
      * wp_signon() and throws $user->get_error_message() verbatim, with no branch
@@ -110,31 +115,31 @@ class UserEnumeration implements Module
     }
 
     /**
-     * Do not reveal whether a username exists when a login fails.
+     * Codes that mean "this link is no longer usable", not "no such account".
+     *
+     * @var string[]
      */
-    public function genericLoginError(string $message): string
-    {
-        global $errors;
-
-        if (isset($errors->errors['invalid_username']) || isset($errors->errors['incorrect_password'])) {
-            return sprintf(
-                /* translators: 1: lost password URL, 2: link title, 3: link text */
-                __('<strong>ERROR</strong>: Invalid username/password combination. <a href="%1$s" title="%2$s">%3$s</a>?'),
-                site_url('wp-login.php?action=lostpassword', 'login'),
-                __('Password Lost and Found'),
-                __('Lost Password')
-            );
-        }
-
-        return $message;
-    }
+    public const LINK_ERRORS = ['invalidkey', 'expiredkey'];
 
     /**
      * Do not reveal whether a username exists through the lost password form.
+     *
+     * Only on an actual submission. wp-login.php applies this hook on the plain
+     * GET of the form too, and it populates $errors from $_GET['error'] first —
+     * so a user arriving from an expired reset link
+     * (?action=lostpassword&error=expiredkey) would be redirected straight to
+     * checkemail=confirm and could never reach the form to request a new one.
+     *
+     * exit after redirecting, as core does: without it wp-login.php carries on
+     * and renders the whole page body underneath the 302.
      */
     public function alwaysRedirectLostPassword(WP_Error $errors): void
     {
-        if (! $errors->has_errors()) {
+        if (empty($_POST) || ! $errors->has_errors()) {
+            return;
+        }
+
+        if (array_diff($errors->get_error_codes(), self::LINK_ERRORS) === []) {
             return;
         }
 
@@ -143,5 +148,6 @@ class UserEnumeration implements Module
             : 'wp-login.php?checkemail=confirm';
 
         wp_safe_redirect($redirectTo);
+        exit;
     }
 }
