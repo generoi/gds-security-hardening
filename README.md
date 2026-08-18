@@ -14,7 +14,7 @@ composer require generoi/gds-security-hardening
 
 | Module | Control |
 |---|---|
-| `XmlRpc` | Exits on `XMLRPC_REQUEST` before anything registers; filters `xmlrpc_enabled` off |
+| `XmlRpc` | Exits on `XMLRPC_REQUEST` before anything registers; filters `xmlrpc_enabled` off; removes the RSD link and `X-Pingback` |
 | `Rest` | Disables JSONP; refuses a read overridden into a write; removes REST discovery output |
 | `ApplicationPasswords` | Closes the remote authorization flow; keeps passwords to `manage_options` |
 | `Headers` | HSTS, nosniff, X-Frame-Options, Referrer-Policy on frontend, admin, login **and REST** |
@@ -162,6 +162,32 @@ npx wp-env start
 npm run test:php    # phpunit against a real WordPress
 npm run test:e2e    # playwright against the running site
 ```
+
+The test environment installs the plugins that actually render on wp-login.php —
+`two-factor`, `limit-login-attempts-reloaded`, `wordfence` and `polylang` —
+because the strict login policy's whole risk is third-party markup on that screen.
+
+### What the login policy blocks, measured
+
+Core is clean: every route it uses to emit script on wp-login.php carries the
+nonce — `wp_script_attributes` for tags, and `wp_print_inline_script_tag()` for
+localized data (`class-wp-scripts.php:247`), inline before/after scripts (`:612`)
+and translations (`:366`, `:773`).
+
+- **two-factor: clean.** It ships raw-script copies of `login_header()`/
+  `login_footer()` but only loads them when `login_header()` is undefined
+  (`class-two-factor-core.php:1111`), and both entry points to the challenge are
+  `login_form_*` actions that only fire inside wp-login.php, where core's is
+  always defined.
+- **wordfence, polylang: clean** on the login screen.
+- **limit-login-attempts-reloaded: blocked.** It echoes a raw `<script>` on *any*
+  POST to wp-login.php — a failed login and the two-factor challenge alike, not
+  just failures. What that script does is wire up its own error display and an
+  admin-ajax URL, so the cost is its supplementary messaging: the login form is
+  core markup and keeps working, core still renders the error server-side, and
+  LLAR's lockout enforcement is server-side and unaffected. The fix is to make it
+  print through `wp_print_inline_script_tag()`; patching it via composer-patches
+  is what we do.
 
 Two environment notes, both of which shape the tests rather than the code.
 WordPress only loads mu-plugins sitting directly in `WPMU_PLUGIN_DIR`, so a

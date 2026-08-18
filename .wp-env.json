@@ -1,7 +1,10 @@
 {
     "core": null,
     "plugins": [
-        "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip"
+        "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip",
+        "https://downloads.wordpress.org/plugin/two-factor.latest-stable.zip",
+        "https://downloads.wordpress.org/plugin/limit-login-attempts-reloaded.latest-stable.zip",
+        "https://downloads.wordpress.org/plugin/wordfence.latest-stable.zip"
     ],
     "mappings": {
         "wp-content/mu-plugins/gds-security-hardening": ".",
