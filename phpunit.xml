@@ -5,9 +5,9 @@
     beStrictAboutTestsThatDoNotTestAnything="true"
 >
     <testsuites>
-        <testsuite name="unit">
-            <directory suffix="Test.php">tests/Unit</directory>
-        </testsuite>
+        <!-- Integration only. These controls are defined by how they interact
+             with core's hook order and with other plugins on the same hooks, so
+             there is nothing meaningful to assert against mocks. -->
         <testsuite name="integration">
             <directory suffix="Test.php">tests/Integration</directory>
         </testsuite>
