@@ -24,6 +24,20 @@ use WP_User;
  * moment someone is trying to lock an intruder out, so revoking everything is
  * what they meant. A routine profile save is not, and revoking an integration's
  * credential there would be a surprise outage.
+ *
+ * Two things about WooCommerce, which reimplements the reset flow rather than
+ * calling core's reset_password():
+ *
+ * - It fires after_password_reset *before* wc_set_customer_auth_cookie(), so the
+ *   customer's new session is created after this destroys the old ones and they
+ *   stay logged in. That ordering is what makes this safe there; being logged out
+ *   after a reset would be acceptable but is not what happens.
+ * - It only started firing after_password_reset in 10.9.0. On an older
+ *   WooCommerce the my-account reset path fires nothing, so this control does not
+ *   run and the reset revokes nothing — the very gap it exists to close. That is
+ *   a reason to keep WooCommerce current, not something this package can work
+ *   around: hooking wp_set_password instead would revoke on every routine
+ *   profile save.
  */
 class Credentials implements Module
 {
