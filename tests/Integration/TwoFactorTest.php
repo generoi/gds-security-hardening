@@ -66,9 +66,23 @@ class TwoFactorTest extends WP_UnitTestCase
         $this->assertFalse(current_user_can('edit_posts'));
     }
 
+    /**
+     * `read` alone does not get you to the profile screen.
+     * wp-admin/user-edit.php:194 guards on edit_user, and two-factor's REST
+     * enrolment route does the same — so without core's self-edit allowance
+     * surviving, an unenrolled user cannot enrol at all.
+     */
     public function test_an_unenrolled_user_can_still_reach_their_profile(): void
     {
         $this->assertTrue(current_user_can('read'));
+        $this->assertTrue(current_user_can('edit_user', $this->user), 'Cannot reach profile.php to enrol.');
+    }
+
+    public function test_an_unenrolled_user_still_cannot_edit_anyone_else(): void
+    {
+        $other = self::factory()->user->create(['role' => 'editor']);
+
+        $this->assertFalse(current_user_can('edit_user', $other));
     }
 
     public function test_an_enrolled_administrator_is_unaffected(): void

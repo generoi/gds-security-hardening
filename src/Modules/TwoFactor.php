@@ -131,6 +131,23 @@ class TwoFactor implements Module
             return $caps;
         }
 
+        /*
+         * Leave core's self-edit allowance alone.
+         *
+         * map_meta_cap breaks with $caps still empty for a user editing
+         * themselves (capabilities.php:70), and empty means allowed. Replacing
+         * that with do_not_allow makes wp-admin/user-edit.php:194 wp_die() on
+         * profile.php, and 403s two-factor's own REST enrolment route, whose
+         * permission callback starts with current_user_can('edit_user').
+         *
+         * An unenrolled user would then have no way to enrol — locked out by the
+         * control that exists to make them enrol. `read` alone is not enough to
+         * reach the profile screen.
+         */
+        if ($cap === 'edit_user' && isset($args[0]) && $userId === (int) $args[0]) {
+            return $caps;
+        }
+
         // 'do_not_allow', never an empty array. WP_User::has_cap() ends with
         //
         //     foreach ( (array) $caps as $cap ) {
