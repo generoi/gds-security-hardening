@@ -34,8 +34,8 @@ class ApplicationPasswords implements Module
     public function refuseAuthorizationScreen(): void
     {
         wp_die(
-            __('Remote application authorization is disabled on this site. Create an application password from your profile instead.', 'wp-security-hardening'),
-            __('Authorization disabled', 'wp-security-hardening'),
+            __('Remote application authorization is disabled on this site. Create an application password from your profile instead.', 'gds-security-hardening'),
+            __('Authorization disabled', 'gds-security-hardening'),
             ['response' => 403, 'back_link' => true],
         );
     }

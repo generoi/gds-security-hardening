@@ -33,7 +33,7 @@ class Passwords implements Module
         if (strlen($password) < self::MINIMUM_LENGTH) {
             return new WP_Error('password_too_short', sprintf(
                 /* translators: %d: minimum number of characters */
-                __('<strong>Error</strong>: Password must be at least %d characters long.', 'wp-security-hardening'),
+                __('<strong>Error</strong>: Password must be at least %d characters long.', 'gds-security-hardening'),
                 self::MINIMUM_LENGTH,
             ));
         }
@@ -91,8 +91,8 @@ class Passwords implements Module
         }
 
         wp_enqueue_script(
-            'wp-security-hardening-password',
-            plugins_url('assets/hide-weak-password.js', dirname(__DIR__).'/wp-security-hardening.php'),
+            'gds-security-hardening-password',
+            plugins_url('assets/hide-weak-password.js', dirname(__DIR__).'/gds-security-hardening.php'),
             [],
             null,
             true,

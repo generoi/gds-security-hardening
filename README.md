@@ -1,4 +1,4 @@
-# wp-security-hardening
+# gds-security-hardening
 
 Security hardening for WordPress that takes no per-site configuration.
 
@@ -7,7 +7,7 @@ per-site answer — a REST allowlist, an integration user, a CSP — belongs in 
 site's own mu-plugins, not here.
 
 ```bash
-composer require generoi/wp-security-hardening
+composer require generoi/gds-security-hardening
 ```
 
 ## What it does
@@ -55,7 +55,7 @@ any `user_has_cap` callback and recurses until PHP runs out of memory. It reads
 ## Turning a module on or off
 
 ```php
-add_filter('wp_security_hardening_modules', fn ($modules) => [
+add_filter('gds_security_hardening_modules', fn ($modules) => [
     ...$modules,
     \GeneroWP\SecurityHardening\Modules\TwoFactor::class,
 ]);
@@ -90,7 +90,7 @@ browser through a successful and a failed login and fails on any CSP violation,
 so a site can find out before its users do.
 
 A site that cannot take it removes the module with the filter; a site wanting
-more appends through `wp_security_hardening_csp_directives`.
+more appends through `gds_security_hardening_csp_directives`.
 
 ## Widening a control for one site
 

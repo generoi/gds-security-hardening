@@ -42,7 +42,7 @@ class Plugin
         Filesystem::class,
     ];
 
-    public const FILTER_MODULES = 'wp_security_hardening_modules';
+    public const FILTER_MODULES = 'gds_security_hardening_modules';
 
     public static function boot(): void
     {
@@ -53,7 +53,7 @@ class Plugin
          * one control drops that class and keeps the rest, instead of forking the
          * package or disabling it wholesale:
          *
-         *     add_filter('wp_security_hardening_modules', fn ($modules) => array_diff(
+         *     add_filter('gds_security_hardening_modules', fn ($modules) => array_diff(
          *         $modules,
          *         [\GeneroWP\SecurityHardening\Modules\Uploads::class],
          *     ));

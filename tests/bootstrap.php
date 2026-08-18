@@ -21,7 +21,7 @@ $wpPhpunit = getenv('WP_PHPUNIT__DIR') ?: dirname(__DIR__).'/vendor/wp-phpunit/w
 require_once $wpPhpunit.'/includes/functions.php';
 
 tests_add_filter('muplugins_loaded', function (): void {
-    require dirname(__DIR__).'/wp-security-hardening.php';
+    require dirname(__DIR__).'/gds-security-hardening.php';
 });
 
 require $wpPhpunit.'/includes/bootstrap.php';

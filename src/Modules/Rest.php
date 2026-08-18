@@ -46,7 +46,7 @@ class Rest implements Module
         if ($overridden && in_array($actual, ['GET', 'HEAD'], true)) {
             return new WP_Error(
                 'rest_method_override_disabled',
-                __('A read request may not be overridden into a write.', 'wp-security-hardening'),
+                __('A read request may not be overridden into a write.', 'gds-security-hardening'),
                 ['status' => 400],
             );
         }

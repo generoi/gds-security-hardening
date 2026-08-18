@@ -2,7 +2,7 @@
 
 /*
 Plugin Name:  Security Hardening
-Plugin URI:   https://github.com/generoi/wp-security-hardening
+Plugin URI:   https://github.com/generoi/gds-security-hardening
 Description:  Security hardening that takes no per-site configuration
 Version:      1.0.0
 Author:       Genero

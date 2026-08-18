@@ -12,7 +12,7 @@ use Two_Factor_Core;
  * of everything until they enrol, which is a decision a site makes rather than
  * one a package makes for it. Opt in with:
  *
- *     add_filter('wp_security_hardening_modules', fn ($modules) => [
+ *     add_filter('gds_security_hardening_modules', fn ($modules) => [
  *         ...$modules,
  *         \GeneroWP\SecurityHardening\Modules\TwoFactor::class,
  *     ]);

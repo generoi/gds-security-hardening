@@ -70,11 +70,11 @@ class ContentSecurityPolicyTest extends WP_UnitTestCase
     public function test_the_directives_are_filterable(): void
     {
         $callback = fn (array $directives) => [...$directives, "form-action 'self'"];
-        add_filter('wp_security_hardening_csp_directives', $callback);
+        add_filter('gds_security_hardening_csp_directives', $callback);
 
-        $directives = apply_filters('wp_security_hardening_csp_directives', ContentSecurityPolicy::DIRECTIVES);
+        $directives = apply_filters('gds_security_hardening_csp_directives', ContentSecurityPolicy::DIRECTIVES);
 
-        remove_filter('wp_security_hardening_csp_directives', $callback);
+        remove_filter('gds_security_hardening_csp_directives', $callback);
 
         $this->assertContains("form-action 'self'", $directives);
     }

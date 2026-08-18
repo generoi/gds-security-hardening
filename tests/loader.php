@@ -12,4 +12,4 @@ Version:      1.0.0
  * autoloader does that in production by globbing mu-plugins/-*-/-*-.php; plain
  * installs, including wp-env, need this stub.
  */
-require_once WPMU_PLUGIN_DIR.'/wp-security-hardening/wp-security-hardening.php';
+require_once WPMU_PLUGIN_DIR.'/gds-security-hardening/gds-security-hardening.php';

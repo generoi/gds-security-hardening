@@ -152,7 +152,7 @@ class ContentSecurityPolicy implements Module
             $directives[] = 'upgrade-insecure-requests';
         }
 
-        $policy = implode('; ', apply_filters('wp_security_hardening_csp_directives', $directives));
+        $policy = implode('; ', apply_filters('gds_security_hardening_csp_directives', $directives));
 
         header("Content-Security-Policy: {$policy}");
     }
