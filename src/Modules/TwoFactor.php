@@ -110,6 +110,17 @@ class TwoFactor implements Module
             return $caps;
         }
 
-        return [];
+        // 'do_not_allow', never an empty array. WP_User::has_cap() ends with
+        //
+        //     foreach ( (array) $caps as $cap ) {
+        //         if ( empty( $capabilities[ $cap ] ) ) { return false; }
+        //     }
+        //     return true;
+        //
+        // so an empty $caps skips the loop and returns *true* — returning []
+        // here grants every capability instead of denying it, which is the exact
+        // inverse of this module. Core unsets 'do_not_allow' from $capabilities
+        // just above that loop, so requiring it always fails.
+        return ['do_not_allow'];
     }
 }
