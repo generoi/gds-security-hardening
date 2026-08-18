@@ -117,6 +117,30 @@ test.describe('wp-login.php with the login plugins active', () => {
         }
     });
 
+    /**
+     * Exactly what the blocked script costs.
+     *
+     * All it does is POST to admin-ajax.php for `get_remaining_attempts_message`
+     * and inject the result — the "N attempts remaining" notice. Everything that
+     * matters is rendered server-side and survives: the failure message, the
+     * lockout message, and the lockout itself.
+     */
+    test('the lockout message and enforcement survive the blocked script', async ({ page }) => {
+        clearLockouts();
+
+        for (let attempt = 0; attempt < 5; attempt++) {
+            await page.goto('/wp-login.php');
+            await page.fill('#user_login', 'nobody');
+            await page.fill('#user_pass', `wrong-${attempt}`);
+            await page.click('#wp-submit');
+        }
+
+        // Server-rendered, not injected by the script the policy blocks.
+        await expect(page.locator('#login_error')).toContainText(/too many failed login attempts/i);
+
+        clearLockouts();
+    });
+
     test('logging in still succeeds with all of them active', async ({ page }) => {
         clearLockouts();
 
