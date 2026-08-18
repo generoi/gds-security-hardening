@@ -36,15 +36,30 @@ class TwoFactor implements Module
     }
 
     /**
-     * Resolved once, outside the capability filters.
+     * Whether the current user has two-factor set up.
      *
-     * Calling this from inside map_meta_cap or user_has_cap would re-enter the
-     * capability pipeline from within itself.
+     * Resolved outside the capability pipeline: the two-factor plugin's own
+     * lookups check capabilities, so calling this from within map_meta_cap or
+     * user_has_cap re-enters that pipeline from inside itself.
+     *
+     * The first guard matters more than it looks. _wp_get_current_user() has no
+     * reentrancy guard (wp-includes/user.php): while $current_user is still empty
+     * it re-enters `apply_filters('determine_current_user', false)` every time it
+     * is called. So if any plugin performs a capability check during that
+     * resolution — which is exactly what a user_has_cap callback would do here —
+     * asking for the current user recurses until PHP runs out of memory. When the
+     * user is not resolved yet there is nobody to enforce against, so this
+     * reports enrolled and leaves the caps alone; enforcement happens on the
+     * checks that come after resolution.
      *
      * @see https://github.com/Automattic/vip-go-mu-plugins/blob/develop/two-factor.php
      */
     public function isEnrolled(): bool
     {
+        if (empty($GLOBALS['current_user'])) {
+            return true;
+        }
+
         if (! is_user_logged_in()) {
             return false;
         }
