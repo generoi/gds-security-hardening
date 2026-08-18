@@ -3,8 +3,12 @@
 namespace GeneroWP\SecurityHardening\Tests\Integration;
 
 use GeneroWP\SecurityHardening\Modules\TwoFactor;
+use Two_Factor_Core;
 use WP_UnitTestCase;
 
+/**
+ * Against the real two-factor plugin, loaded in tests/bootstrap.php.
+ */
 class TwoFactorTest extends WP_UnitTestCase
 {
     protected TwoFactor $module;
@@ -15,82 +19,66 @@ class TwoFactorTest extends WP_UnitTestCase
     {
         parent::set_up();
 
-        // Methods are called directly rather than through register(): hooking
-        // them here would leave the filters attached for the rest of the suite.
-        //
-        // isEnrolled() is overridden because the two-factor plugin is not loaded
-        // by the phpunit bootstrap — without it the module reports enrolled by
-        // design, so the unenrolled branch would never be exercised.
-        $this->module = new class extends TwoFactor
-        {
-            public bool $enrolled = false;
+        if (! class_exists(Two_Factor_Core::class)) {
+            $this->markTestSkipped('The two-factor plugin is not loaded.');
+        }
 
-            public function isEnrolled(): bool
-            {
-                return $this->enrolled;
-            }
-        };
+        $this->module = new TwoFactor;
+        $this->module->register();
+
         $this->user = self::factory()->user->create(['role' => 'administrator']);
         wp_set_current_user($this->user);
     }
 
+    public function tear_down(): void
+    {
+        remove_filter('user_has_cap', [$this->module, 'stripCapabilities'], 0);
+        remove_filter('map_meta_cap', [$this->module, 'stripMetaCapabilities'], 0);
+        remove_action('admin_init', [$this->module, 'redirectToEnrolment']);
+
+        parent::tear_down();
+    }
+
+    protected function enrol(int $user): void
+    {
+        update_user_meta($user, '_two_factor_enabled_providers', ['Two_Factor_Email']);
+        update_user_meta($user, '_two_factor_provider', 'Two_Factor_Email');
+    }
+
+    public function test_the_plugin_agrees_the_fixture_user_is_not_enrolled(): void
+    {
+        $this->assertFalse(Two_Factor_Core::is_user_using_two_factor($this->user));
+        $this->assertFalse($this->module->isEnrolled());
+    }
+
     /**
-     * The defect this test exists for.
+     * The whole point, asserted the way WordPress asks the question.
      *
-     * map_meta_cap returning an empty array denies nothing. WP_User::has_cap()
-     * ends with `foreach ((array) $caps as $cap) { ... } return true;`, so an
-     * empty array skips the loop and grants. An unenrolled user was therefore
-     * given *every* capability — manage_options, edit_users, install_plugins —
-     * the exact inverse of this module's purpose.
+     * This is what an empty map_meta_cap return got wrong: has_cap() ends with
+     * `foreach ((array) $caps as $cap)` and returns true on an empty array, so
+     * returning [] granted every capability instead of denying it.
      */
-    public function test_an_unenrolled_user_is_denied_rather_than_granted(): void
+    public function test_an_unenrolled_administrator_cannot_do_anything_privileged(): void
     {
-        $caps = $this->module->stripMetaCapabilities(['manage_options'], 'manage_options', $this->user, []);
-
-        $this->assertNotSame([], $caps, 'An empty caps array grants the capability.');
-        $this->assertSame(['do_not_allow'], $caps);
+        $this->assertFalse(current_user_can('manage_options'));
+        $this->assertFalse(current_user_can('edit_users'));
+        $this->assertFalse(current_user_can('install_plugins'));
+        $this->assertFalse(current_user_can('edit_posts'));
     }
 
-    public function test_read_stays_allowed_so_the_profile_screen_is_reachable(): void
+    public function test_an_unenrolled_user_can_still_reach_their_profile(): void
     {
-        $this->assertSame(
-            ['read'],
-            $this->module->stripMetaCapabilities(['read'], 'read', $this->user, []),
-        );
+        $this->assertTrue(current_user_can('read'));
     }
 
-    public function test_an_unenrolled_user_keeps_only_read_in_allcaps(): void
+    public function test_an_enrolled_administrator_is_unaffected(): void
     {
-        $stripped = $this->module->stripCapabilities(
-            ['read' => true, 'manage_options' => true, 'edit_users' => true],
-            ['manage_options'],
-            [],
-            $this->user,
-        );
+        $this->enrol($this->user);
+        wp_set_current_user($this->user);
 
-        $this->assertSame(['read' => true], $stripped);
-    }
-
-    /**
-     * Core's own semantics, asserted directly so the reasoning above cannot
-     * quietly stop being true under a future WordPress.
-     */
-    public function test_core_grants_on_an_empty_caps_array_and_denies_on_do_not_allow(): void
-    {
-        $user = get_userdata($this->user);
-
-        $granting = fn () => [];
-        add_filter('map_meta_cap', $granting, 99);
-        $granted = $user->has_cap('some_made_up_capability');
-        remove_filter('map_meta_cap', $granting, 99);
-
-        $denying = fn () => ['do_not_allow'];
-        add_filter('map_meta_cap', $denying, 99);
-        $denied = $user->has_cap('some_made_up_capability');
-        remove_filter('map_meta_cap', $denying, 99);
-
-        $this->assertTrue($granted, 'Core grants when map_meta_cap returns [].');
-        $this->assertFalse($denied, 'Core denies on do_not_allow.');
+        $this->assertTrue(Two_Factor_Core::is_user_using_two_factor($this->user));
+        $this->assertTrue(current_user_can('manage_options'));
+        $this->assertTrue(current_user_can('edit_users'));
     }
 
     /**
@@ -103,20 +91,10 @@ class TwoFactorTest extends WP_UnitTestCase
         $previous = $GLOBALS['current_user'] ?? null;
         unset($GLOBALS['current_user']);
 
-        $enrolled = (new TwoFactor)->isEnrolled();
+        $enrolled = $this->module->isEnrolled();
 
         $GLOBALS['current_user'] = $previous;
 
         $this->assertTrue($enrolled);
-    }
-
-    public function test_an_enrolled_user_keeps_everything(): void
-    {
-        $this->module->enrolled = true;
-
-        $this->assertSame(
-            ['manage_options'],
-            $this->module->stripMetaCapabilities(['manage_options'], 'manage_options', $this->user, []),
-        );
     }
 }

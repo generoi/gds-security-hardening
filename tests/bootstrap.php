@@ -21,6 +21,31 @@ $wpPhpunit = getenv('WP_PHPUNIT__DIR') ?: dirname(__DIR__).'/vendor/wp-phpunit/w
 require_once $wpPhpunit.'/includes/functions.php';
 
 tests_add_filter('muplugins_loaded', function (): void {
+    /*
+     * Real plugins, not doubles.
+     *
+     * Several controls exist because of what these do — WooCommerce posts
+     * password_1 through handlers that fire none of core's password hooks, and
+     * two-factor is what TwoFactor gates on — so testing them against mocks would
+     * assert our reading of those plugins rather than their behaviour.
+     *
+     * This package installs into mu-plugins, so the plugins directory is a
+     * sibling of that rather than the parent. Skipped when absent so the suite
+     * still runs against a bare WordPress.
+     */
+    $plugins = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : dirname(__DIR__, 3).'/plugins';
+
+    foreach ([
+        '/woocommerce.10.9.4/woocommerce.php',
+        '/woocommerce/woocommerce.php',
+        '/two-factor.latest-stable/two-factor.php',
+        '/two-factor/two-factor.php',
+    ] as $plugin) {
+        if (file_exists($plugins.$plugin)) {
+            require_once $plugins.$plugin;
+        }
+    }
+
     require dirname(__DIR__).'/gds-security-hardening.php';
 });
 

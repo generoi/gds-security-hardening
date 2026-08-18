@@ -4,7 +4,8 @@
         "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip",
         "https://downloads.wordpress.org/plugin/two-factor.latest-stable.zip",
         "https://downloads.wordpress.org/plugin/limit-login-attempts-reloaded.latest-stable.zip",
-        "https://downloads.wordpress.org/plugin/wordfence.latest-stable.zip"
+        "https://downloads.wordpress.org/plugin/wordfence.latest-stable.zip",
+        "https://downloads.wordpress.org/plugin/woocommerce.10.9.4.zip"
     ],
     "mappings": {
         "wp-content/mu-plugins/gds-security-hardening": ".",
@@ -17,5 +18,9 @@
                 "wp-content/mu-plugins/000-security-hardening-loader.php": "./tests/loader.php"
             }
         }
+    },
+    "config": {
+        "WP_MEMORY_LIMIT": "512M",
+        "WP_MAX_MEMORY_LIMIT": "512M"
     }
 }

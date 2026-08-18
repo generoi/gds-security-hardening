@@ -89,39 +89,6 @@ class ContentSecurityPolicyTest extends WP_UnitTestCase
         $this->assertContains(ContentSecurityPolicy::class, Plugin::MODULES);
     }
 
-    /**
-     * Without the two-factor plugin the module must be inert: locking every
-     * account out of a site that has no way to enrol is worse than not enforcing.
-     */
-    public function test_two_factor_is_inert_without_the_plugin(): void
-    {
-        if (class_exists(\Two_Factor_Core::class)) {
-            $this->markTestSkipped('two-factor is installed in this environment.');
-        }
-
-        wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
-
-        $this->assertTrue((new TwoFactor)->isEnrolled());
-    }
-
-    /**
-     * _wp_get_current_user() re-enters determine_current_user while $current_user
-     * is still empty, so a capability filter that asks for the current user
-     * during that resolution recurses without a guard. TwoFactor's check runs
-     * from inside user_has_cap, so it has to stay out of that window.
-     */
-    public function test_two_factor_does_not_resolve_the_current_user_mid_resolution(): void
-    {
-        $previous = $GLOBALS['current_user'] ?? null;
-        unset($GLOBALS['current_user']);
-
-        $enrolled = (new TwoFactor)->isEnrolled();
-
-        $GLOBALS['current_user'] = $previous;
-
-        $this->assertTrue($enrolled);
-    }
-
     public function test_the_modules_filter_can_remove_a_module(): void
     {
         $callback = fn (array $modules) => array_values(array_diff($modules, [ContentSecurityPolicy::class]));

@@ -12,6 +12,11 @@ setup('authenticate as administrator', async ({ page }) => {
         { stdio: 'ignore' },
     );
 
+    // wordfence is activated by the login specs and deactivated again, but an
+    // interrupted run can leave it on, and while it is on the block editor's save
+    // never completes. Normalise it here so the suite starts from a known state.
+    execSync('npx wp-env run cli wp plugin deactivate wordfence.latest-stable', { stdio: 'ignore' });
+
     // The failed-login specs trip limit-login-attempts' lockout, which then
     // blocks every later login and makes the suite order-dependent. Clear it.
     execSync(

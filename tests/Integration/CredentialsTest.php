@@ -93,6 +93,32 @@ class CredentialsTest extends WP_UnitTestCase
         );
     }
 
+    /**
+     * WooCommerce reimplements the reset flow rather than calling core's
+     * reset_password(), and only started firing after_password_reset in 10.9.0.
+     * This runs its real method, so if that parity is ever dropped the coverage
+     * gap shows up here rather than in production.
+     */
+    public function test_the_woocommerce_reset_flow_revokes_application_passwords(): void
+    {
+        if (! class_exists(\WC_Shortcode_My_Account::class)) {
+            $this->markTestSkipped('WooCommerce is not loaded.');
+        }
+
+        $user = self::factory()->user->create_and_get(['role' => 'administrator']);
+        WP_Application_Passwords::create_new_application_password($user->ID, ['name' => 'integration']);
+
+        try {
+            \WC_Shortcode_My_Account::reset_password($user, 'a-new-password-entirely');
+        } catch (\Throwable $e) {
+            // wc_setcookie() runs after the revocation and cannot send headers
+            // under CLI. The part being tested has already happened.
+            $this->assertStringContainsString('headers already sent', $e->getMessage());
+        }
+
+        $this->assertSame([], WP_Application_Passwords::get_user_application_passwords($user->ID));
+    }
+
     public function test_it_leaves_other_authentication_errors_untouched(): void
     {
         $error = new \WP_Error('too_many_retries', 'Blocked by the login limiter.');

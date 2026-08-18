@@ -163,9 +163,25 @@ npm run test:php    # phpunit against a real WordPress
 npm run test:e2e    # playwright against the running site
 ```
 
-The test environment installs the plugins that actually render on wp-login.php —
-`two-factor`, `limit-login-attempts-reloaded`, `wordfence` and `polylang` —
-because the strict login policy's whole risk is third-party markup on that screen.
+The test environment installs the plugins the controls actually have to work
+with — `woocommerce`, `two-factor`, `limit-login-attempts-reloaded`, `wordfence`
+and `polylang` — and `tests/bootstrap.php` loads WooCommerce and two-factor into
+the phpunit run. Several controls exist *because* of what those plugins do, so
+testing them against doubles would assert our reading of the plugin rather than
+the plugin.
+
+That is why the suite needs `-d memory_limit=1024M`: WooCommerce does not fit in
+the default 128M alongside the test harness.
+
+Concretely, these run against the real thing rather than a mock:
+
+- `POST /wp/v2/users` through `rest_do_request()`, because that route reaches
+  `wp_insert_user()` and fires none of core's password hooks
+- WooCommerce's own `woocommerce_save_account_details_errors` and its
+  `validate_password_reset` call, with the `password_1` field it actually posts
+- `WC_Shortcode_My_Account::reset_password()`, so if WooCommerce ever drops the
+  `after_password_reset` parity it added in 10.9.0 we find out here
+- `current_user_can()` against a real unenrolled two-factor user
 
 ### What the login policy blocks, measured
 

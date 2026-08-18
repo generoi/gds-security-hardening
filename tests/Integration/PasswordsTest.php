@@ -92,4 +92,90 @@ class PasswordsTest extends WP_UnitTestCase
 
         $this->assertFalse($errors->has_errors());
     }
+
+    /**
+     * Through the real route, not the module's method.
+     */
+    public function test_the_rest_users_route_refuses_a_short_password(): void
+    {
+        wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
+
+        $request = new WP_REST_Request('POST', '/wp/v2/users');
+        $request->set_param('username', 'restshortpw');
+        $request->set_param('email', 'restshortpw@example.test');
+        $request->set_param('password', 'short');
+
+        $response = rest_do_request($request);
+
+        $this->assertTrue($response->is_error());
+        $this->assertFalse((bool) username_exists('restshortpw'));
+    }
+
+    public function test_the_rest_users_route_accepts_a_long_enough_password(): void
+    {
+        wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
+
+        $request = new WP_REST_Request('POST', '/wp/v2/users');
+        $request->set_param('username', 'restlongpw');
+        $request->set_param('email', 'restlongpw@example.test');
+        $request->set_param('password', str_repeat('a', 16));
+
+        $response = rest_do_request($request);
+
+        $this->assertFalse($response->is_error(), 'A valid password was refused.');
+        $this->assertNotFalse(username_exists('restlongpw'));
+    }
+
+    /**
+     * WooCommerce's own hook, fired the way WooCommerce fires it
+     * (class-wc-form-handler.php:334), with the field name WooCommerce posts.
+     */
+    public function test_woocommerce_account_details_refuse_a_short_password(): void
+    {
+        if (! class_exists(\WooCommerce::class)) {
+            $this->markTestSkipped('WooCommerce is not loaded.');
+        }
+
+        $user = get_userdata(self::factory()->user->create(['role' => 'customer']));
+        $_POST['password_1'] = 'short';
+        $errors = new WP_Error;
+
+        do_action_ref_array('woocommerce_save_account_details_errors', [&$errors, &$user]);
+
+        $this->assertContains('password_too_short', $errors->get_error_codes());
+    }
+
+    /**
+     * WooCommerce's reset handler fires core's validate_password_reset, but with
+     * the password in its own field (class-wc-form-handler.php:1162).
+     */
+    public function test_the_woocommerce_reset_flow_refuses_a_short_password(): void
+    {
+        if (! class_exists(\WooCommerce::class)) {
+            $this->markTestSkipped('WooCommerce is not loaded.');
+        }
+
+        $user = get_userdata(self::factory()->user->create(['role' => 'customer']));
+        $_POST['password_1'] = 'short';
+        $errors = new WP_Error;
+
+        do_action('validate_password_reset', $errors, $user);
+
+        $this->assertContains('password_too_short', $errors->get_error_codes());
+    }
+
+    public function test_the_woocommerce_reset_flow_accepts_a_long_enough_password(): void
+    {
+        if (! class_exists(\WooCommerce::class)) {
+            $this->markTestSkipped('WooCommerce is not loaded.');
+        }
+
+        $user = get_userdata(self::factory()->user->create(['role' => 'customer']));
+        $_POST['password_1'] = str_repeat('a', 16);
+        $errors = new WP_Error;
+
+        do_action('validate_password_reset', $errors, $user);
+
+        $this->assertFalse($errors->has_errors());
+    }
 }
