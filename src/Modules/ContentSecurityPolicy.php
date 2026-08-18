@@ -19,12 +19,25 @@ class ContentSecurityPolicy implements Module
     /**
      * Directives that need no per-site verification.
      *
-     * Nothing here can plausibly be tripped by a plugin update, and
      * `frame-ancestors 'self'` only restates the header core already sends from
      * send_frame_options_header(). It stays 'self' rather than 'none' because
      * core frames this page itself: wp_auth_check_html() embeds
      * wp-login.php?interim-login=1 on every admin screen so the session-expired
      * modal can re-authenticate in place.
+     *
+     * `object-src 'none'` blocks <object>, <embed> and <applet>. Core emits none
+     * of them in wp-admin — the only <embed> in core is SimplePie's feed
+     * enclosure player, which is frontend-only Flash and QuickTime markup, and
+     * the <object> mentions in wp-admin/js/editor.js are autop regexes cleaning
+     * line breaks, not element creation. PDFs are unaffected: the media modal
+     * renders them as a "Document Preview" <img> built from the generated
+     * thumbnail (wp-includes/media-template.php:427), and object-src does not
+     * govern images.
+     *
+     * What is not swept is plugin admin screens. A plugin embedding a viewer
+     * through <object> or <embed> would break, which is a smaller risk than the
+     * script directives carry — those elements are Flash and Java era — but not
+     * zero. A site that hits it removes the module with the filter.
      *
      * @var string[]
      */
