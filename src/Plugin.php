@@ -35,9 +35,34 @@ class Plugin
         Filesystem::class,
     ];
 
+    public const FILTER_MODULES = 'wp_security_hardening_modules';
+
     public static function boot(): void
     {
-        foreach (self::MODULES as $module) {
+        /**
+         * Filters the modules that will be registered.
+         *
+         * The intended use is removal — a site that genuinely cannot live with
+         * one control drops that class and keeps the rest, instead of forking the
+         * package or disabling it wholesale:
+         *
+         *     add_filter('wp_security_hardening_modules', fn ($modules) => array_diff(
+         *         $modules,
+         *         [\GeneroWP\SecurityHardening\Modules\Uploads::class],
+         *     ));
+         *
+         * Prefer widening the control itself from a later priority where that is
+         * possible; removal is the blunter instrument.
+         *
+         * @param  class-string<Module>[]  $modules
+         */
+        $modules = apply_filters(self::FILTER_MODULES, self::MODULES);
+
+        foreach ($modules as $module) {
+            if (! is_subclass_of($module, Module::class)) {
+                continue;
+            }
+
             (new $module)->register();
         }
     }

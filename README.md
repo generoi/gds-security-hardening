@@ -70,9 +70,19 @@ the test environment because it registers four `rest_pre_dispatch` callbacks.
 
 ```bash
 composer install
+npm install
 npx wp-env start
-composer test:wp-env
+npm run test:php    # phpunit against a real WordPress
+npm run test:e2e    # playwright against the running site
 ```
+
+Two environment notes, both of which shape the tests rather than the code.
+WordPress only loads mu-plugins sitting directly in `WPMU_PLUGIN_DIR`, so a
+package installed into a subdirectory needs something to require it — Bedrock's
+autoloader does that in production, and `tests/loader.php` stands in for it here.
+And wp-env's Apache ships `AllowOverride None`, so `.htaccess` is ignored and
+`/wp-json/` never routes; the specs use the `?rest_route=` form, and the editor
+spec asserts that a save is *not refused by us* rather than that it returns 200.
 
 ## Deliberately out of scope
 

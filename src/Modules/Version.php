@@ -27,11 +27,8 @@ class Version implements Module
      * Typed loosely on purpose: core passes `false` for a handle registered
      * without a src, and a third-party filter earlier in the chain can pass
      * anything at all.
-     *
-     * @param  mixed  $src
-     * @return mixed
      */
-    public function stripVersion($src)
+    public function stripVersion(mixed $src): mixed
     {
         if (! is_string($src) || $src === '') {
             return $src;

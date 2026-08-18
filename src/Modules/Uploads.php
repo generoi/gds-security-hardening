@@ -72,13 +72,10 @@ class Uploads implements Module
      * break imports and sideloads, and a CLI session already implies shell.
      *
      * @param  array<string, string>  $mimes
-     * @param  WP_User|int|null  $user
      * @return array<string, string>
      */
-    public function restrict($mimes, $user = null): array
+    public function restrict(array $mimes, WP_User|int|null $user = null): array
     {
-        $mimes = (array) $mimes;
-
         if (defined('WP_CLI') && WP_CLI) {
             return $mimes;
         }

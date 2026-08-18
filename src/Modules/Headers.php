@@ -57,9 +57,9 @@ class Headers implements Module
      * @param  array<string, string>  $headers
      * @return array<string, string>
      */
-    public function merge($headers): array
+    public function merge(array $headers): array
     {
-        return array_merge((array) $headers, self::HEADERS);
+        return array_merge($headers, self::HEADERS);
     }
 
     public function send(): void
@@ -73,11 +73,7 @@ class Headers implements Module
         }
     }
 
-    /**
-     * @param  mixed  $served
-     * @return mixed
-     */
-    public function sendForRest($served)
+    public function sendForRest(mixed $served): mixed
     {
         $this->send();
 

@@ -27,8 +27,8 @@ class HardeningTest extends WP_UnitTestCase
 
     /**
      * The token has to change with the core version, but must not be the version
-     * and must not be computable off-site — the previous implementation used a
-     * fixed salt, so anyone could map the token back to the version it hid.
+     * and must not be computable off-site: a fixed salt would let anyone map the
+     * token back to the version it hides.
      */
     public function test_the_asset_version_token_hides_the_version(): void
     {

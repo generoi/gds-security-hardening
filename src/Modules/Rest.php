@@ -37,11 +37,8 @@ class Rest implements Module
      * existing record with PUT and deletes with DELETE. Refusing overrides
      * outright breaks every save of an existing post, page or template. A POST
      * tunnelling a PUT is also not the bug: the edge already sees a write.
-     *
-     * @param  mixed  $result
-     * @return mixed
      */
-    public function rejectMethodOverride($result)
+    public function rejectMethodOverride(mixed $result): mixed
     {
         $overridden = isset($_GET['_method']) || isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
         $actual = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');

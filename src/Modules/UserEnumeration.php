@@ -49,10 +49,8 @@ class UserEnumeration implements Module
 
     /**
      * Do not reveal whether a username exists when a login fails.
-     *
-     * @param  string  $message
      */
-    public function genericLoginError($message): string
+    public function genericLoginError(string $message): string
     {
         global $errors;
 
@@ -66,7 +64,7 @@ class UserEnumeration implements Module
             );
         }
 
-        return (string) $message;
+        return $message;
     }
 
     /**

@@ -35,7 +35,7 @@
         "lint": "pint --test",
         "lint:fix": "pint",
         "test": "phpunit",
-        "test:wp-env": "wp-env run tests-cli --env-cwd=wp-content/mu-plugins/wp-security-hardening vendor/bin/phpunit",
+        "test:wp-env": "npx wp-env run tests-cli --env-cwd=wp-content/mu-plugins/wp-security-hardening vendor/bin/phpunit",
         "stan": "./vendor/bin/phpstan analyse --memory-limit=1G"
     },
     "config": {

@@ -41,45 +41,26 @@ class Passwords implements Module
         return null;
     }
 
-    /**
-     * @param  mixed  $errors
-     * @param  mixed  $user
-     * @return mixed
-     */
-    public function validateReset($errors, $user = null)
+    public function validateReset(mixed $errors, mixed $user = null): mixed
     {
         $this->addErrors($errors);
 
         return $errors;
     }
 
-    /**
-     * @param  mixed  $errors
-     * @param  mixed  $update
-     * @param  mixed  $user
-     */
-    public function validateProfileUpdate($errors, $update = null, $user = null): void
+    public function validateProfileUpdate(mixed $errors, mixed $update = null, mixed $user = null): void
     {
         $this->addErrors($errors);
     }
 
-    /**
-     * @param  mixed  $errors
-     * @param  mixed  $login
-     * @param  mixed  $email
-     * @return mixed
-     */
-    public function validateRegistration($errors, $login = null, $email = null)
+    public function validateRegistration(mixed $errors, mixed $login = null, mixed $email = null): mixed
     {
         $this->addErrors($errors);
 
         return $errors;
     }
 
-    /**
-     * @param  mixed  $errors
-     */
-    protected function addErrors($errors): void
+    protected function addErrors(mixed $errors): void
     {
         if (! $errors instanceof WP_Error || empty($_POST['pass1'])) {
             return;
@@ -101,11 +82,9 @@ class Passwords implements Module
      * Hide the "Confirm use of weak password" opt-in.
      *
      * A real file rather than an echoed <script>, so it can carry a nonce under a
-     * strict Content-Security-Policy. The previous inline version could not.
-     *
-     * @param  string  $hook
+     * strict Content-Security-Policy.
      */
-    public function enqueueHideWeakOptIn($hook): void
+    public function enqueueHideWeakOptIn(string $hook): void
     {
         if (! in_array($hook, ['user-edit.php', 'user-new.php', 'profile.php'], true)) {
             return;

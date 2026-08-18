@@ -3,12 +3,10 @@
 /**
  * The suite is integration-shaped on purpose.
  *
- * Every defect this package was written to avoid was invisible to a unit test:
- * the application-password recursion needed real user_has_cap callbacks, the
- * rest_pre_dispatch rejection being discarded needed another plugin registered on
- * the same filter, and the upload gate breaking public form uploads needed a form
- * plugin's own validation path. A suite that mocks WordPress would be green and
- * worthless.
+ * These controls are defined by how they interact with core's hook order and with
+ * other plugins on the same hooks — filter priority, whether a capability check is
+ * safe to make at a given point, which callers reach a filter. None of that is
+ * observable against mocks, so the suite boots WordPress.
  */
 $autoload = dirname(__DIR__).'/vendor/autoload.php';
 

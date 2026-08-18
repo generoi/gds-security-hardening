@@ -7,6 +7,11 @@ use WP_User;
 
 class ApplicationPasswords implements Module
 {
+    /**
+     * The capability an account must hold to keep application passwords.
+     */
+    public const REQUIRED_CAPABILITY = 'manage_options';
+
     public function register(): void
     {
         add_action('load-authorize-application.php', [$this, 'refuseAuthorizationScreen']);
@@ -36,7 +41,7 @@ class ApplicationPasswords implements Module
     }
 
     /**
-     * Keep Application Passwords to accounts holding manage_options.
+     * Keep Application Passwords to accounts holding self::REQUIRED_CAPABILITY.
      *
      * Core applies no role check at all — wp_is_application_passwords_supported()
      * is `is_ssl() || 'local' === wp_get_environment_type()` — so any account that
@@ -62,14 +67,11 @@ class ApplicationPasswords implements Module
      * filter runs, so the hook itself always hands over an object. The
      * normalisation below is for direct apply_filters() callers — the test suite
      * is one, and site-local widenings are another.
-     *
-     * @param  bool  $available
-     * @param  WP_User|int|null  $user
      */
-    public function availableForUser($available, $user): bool
+    public function availableForUser(bool $available, WP_User|int|null $user): bool
     {
         if (! $available) {
-            return (bool) $available;
+            return false;
         }
 
         $user = $user instanceof WP_User ? $user : get_userdata($user);
@@ -78,7 +80,7 @@ class ApplicationPasswords implements Module
             return false;
         }
 
-        if (! empty($user->allcaps['manage_options'])) {
+        if (! empty($user->allcaps[self::REQUIRED_CAPABILITY])) {
             return true;
         }
 

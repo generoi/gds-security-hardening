@@ -51,14 +51,12 @@ class ApplicationPasswordsTest extends WP_UnitTestCase
     }
 
     /**
-     * The regression this module exists to avoid.
-     *
      * The filter runs inside wp_validate_application_password(), hooked on
      * determine_current_user, so the current user is still being resolved. A
      * capability check re-enters that resolution through any user_has_cap
      * callback that consults the current user — two-factor and role-editing
      * plugins routinely hook exactly this — and wp_get_current_user() has no
-     * reentrancy guard. With user_can() in the module, this exhausts memory.
+     * reentrancy guard, so a capability check here exhausts memory.
      */
     public function test_it_does_not_recurse_when_a_plugin_hooks_user_has_cap(): void
     {

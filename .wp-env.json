@@ -4,12 +4,14 @@
         "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip"
     ],
     "mappings": {
-        "wp-content/mu-plugins/wp-security-hardening": "."
+        "wp-content/mu-plugins/wp-security-hardening": ".",
+        "wp-content/mu-plugins/000-security-hardening-loader.php": "./tests/loader.php"
     },
     "env": {
         "tests": {
             "mappings": {
-                "wp-content/mu-plugins/wp-security-hardening": "."
+                "wp-content/mu-plugins/wp-security-hardening": ".",
+                "wp-content/mu-plugins/000-security-hardening-loader.php": "./tests/loader.php"
             }
         }
     }
