@@ -24,12 +24,47 @@ class ContentSecurityPolicyTest extends WP_UnitTestCase
      * eval, so a nonce is out, and the nonce-free alternative blocks the external
      * script tags plugins legitimately use on their own screens.
      */
-    public function test_it_says_nothing_about_scripts(): void
+    public function test_the_shared_directives_say_nothing_about_scripts(): void
     {
         $policy = implode('; ', ContentSecurityPolicy::DIRECTIVES);
 
         $this->assertStringNotContainsString('script-src', $policy);
         $this->assertStringNotContainsString('default-src', $policy);
+    }
+
+    public function test_the_login_nonce_is_stable_within_a_request(): void
+    {
+        $module = new ContentSecurityPolicy;
+
+        $this->assertSame($module->nonce(), $module->nonce());
+        $this->assertNotSame($module->nonce(), (new ContentSecurityPolicy)->nonce());
+    }
+
+    /**
+     * Every script tag has to carry the same nonce as the header, or the policy
+     * blocks the login screen's own JavaScript.
+     */
+    public function test_script_tags_get_the_same_nonce_as_the_header(): void
+    {
+        $module = new ContentSecurityPolicy;
+
+        $this->assertSame($module->nonce(), $module->addNonce([])['nonce']);
+    }
+
+    public function test_the_login_policy_locks_scripts_to_the_nonce(): void
+    {
+        $module = new ContentSecurityPolicy;
+        $directives = [
+            ...ContentSecurityPolicy::DIRECTIVES,
+            ...ContentSecurityPolicy::LOGIN_DIRECTIVES,
+            sprintf("script-src 'nonce-%s' 'strict-dynamic'", $module->nonce()),
+        ];
+        $policy = implode('; ', $directives);
+
+        $this->assertStringContainsString("script-src 'nonce-", $policy);
+        $this->assertStringContainsString("'strict-dynamic'", $policy);
+        $this->assertStringNotContainsString("'unsafe-inline'", $policy);
+        $this->assertStringContainsString("form-action 'self'", $policy);
     }
 
     public function test_the_directives_are_filterable(): void

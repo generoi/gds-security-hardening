@@ -23,7 +23,7 @@ composer require generoi/wp-security-hardening
 | `Passwords` | 12-character minimum, enforced **server side** |
 | `Roles` | Pins `default_role` |
 | `Version` | Removes the generator tag; replaces `?ver=` with a site-salted token |
-| `ContentSecurityPolicy` | `base-uri`, `frame-ancestors`, `object-src`, `upgrade-insecure-requests` on admin and login |
+| `ContentSecurityPolicy` | Four no-upkeep directives on admin; a full Strict CSP (nonce + `strict-dynamic`) on wp-login.php |
 | `Filesystem` | Stops WordPress rewriting `.htaccess` |
 
 Off by default, opt in with the modules filter:
@@ -66,13 +66,31 @@ every account out of everything but their profile until they enrol — a decisio
 site makes, not a package. Without that plugin active it is inert rather than
 locking people out of a site with no way to enrol.
 
-The admin and login CSP carries only directives that need no per-site
-verification. It deliberately says nothing about scripts: wp-admin cannot take a
-nonce policy (core prints un-nonced inline scripts on every screen, and the media
-library needs `eval`), and the nonce-free alternative blocks the external
-`<script src>` that plugins legitimately use on their own screens. Enforcing that
-safely needs a per-site plugin sweep, which is what this package does not do. A
-site wanting more can append through `wp_security_hardening_csp_directives`.
+### The CSP is asymmetric on purpose
+
+**wp-admin** gets only directives that need no per-site verification, and says
+nothing about scripts. It cannot take a nonce policy — core alone prints around a
+dozen un-nonced inline scripts per screen (core #59446) and the media library
+needs `eval` (core #62894) — and the nonce-free alternative,
+`script-src-elem 'self' 'unsafe-inline'`, blocks the external `<script src>` that
+plugins legitimately use on their own screens. Enforcing that safely needs a
+per-site plugin sweep, which is what this package does not do.
+
+**wp-login.php** gets a full Strict CSP: `script-src 'nonce-…' 'strict-dynamic'`,
+no `unsafe-inline`. Nothing without that request's nonce executes — injected
+script tags, inline handlers, `javascript:` URIs and `eval` all fail — which is
+what stops an injected script reading the password field on submit. The
+credential-entry page is worth the stricter policy.
+
+⚠️ **The known cost:** a plugin printing a raw `<script>` on the login screen
+stops working. `limit-login-attempts-reloaded` does exactly that when credentials
+are submitted, so it needs a patch or needs to go through
+`wp_print_inline_script_tag()`. `tests/e2e/login-csp.spec.js` drives a real
+browser through a successful and a failed login and fails on any CSP violation,
+so a site can find out before its users do.
+
+A site that cannot take it removes the module with the filter; a site wanting
+more appends through `wp_security_hardening_csp_directives`.
 
 ## Widening a control for one site
 
