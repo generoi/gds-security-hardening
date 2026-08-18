@@ -19,8 +19,9 @@ composer require generoi/gds-security-hardening
 | `ApplicationPasswords` | Closes the remote authorization flow; keeps passwords to `manage_options` |
 | `Headers` | HSTS, nosniff, X-Frame-Options, Referrer-Policy on frontend, admin, login **and REST** |
 | `Uploads` | Keeps parser-heavy formats (PDF/EPS/SVG/HEIC/TIFF/macro-Office) to editors and above |
-| `UserEnumeration` | Blocks `?author=<id>`; makes login and lost-password responses uniform |
+| `UserEnumeration` | Blocks `?author=<id>`; makes authentication, login and lost-password responses uniform |
 | `Passwords` | 12-character minimum, enforced **server side** |
+| `Credentials` | A password reset revokes application passwords and destroys sessions |
 | `Roles` | Pins `default_role` |
 | `Version` | Removes the generator tag; replaces `?ver=` with a site-salted token |
 | `ContentSecurityPolicy` | Four no-upkeep directives on admin; a full Strict CSP (nonce + `strict-dynamic`) on wp-login.php |
@@ -31,6 +32,45 @@ Off by default, opt in with the modules filter:
 | Module | Control |
 |---|---|
 | `TwoFactor` | Requires two-factor enrolment before any capability but `read` |
+
+### A password reset revokes nothing in core
+
+Worth spelling out because it is surprising. `wp_set_password()`
+(`wp-includes/pluggable.php:3099`) writes the hash, clears the activation key,
+cleans the cache and fires an action. That is all. Core contains **no callers** of
+`wp_destroy_all_sessions()`, and `delete_all_application_passwords()` is called
+from exactly one place — the REST controller's manual DELETE.
+
+So the single action a site owner takes on suspicion of compromise leaves the
+attacker's session cookie live, and their application password live. The
+application password survives two-factor too, because it is not a session.
+`Credentials` binds `after_password_reset` and revokes both. It fires
+`gds_security_hardening_credentials_revoked` so the revocation is not invisible to
+whoever runs the integration that just lost its credential.
+
+Deliberately **not** bound to `wp_set_password`: a reset is someone locking an
+intruder out, a routine profile save is not.
+
+### `login_errors` is not enough to stop user enumeration
+
+Core applies that filter in exactly one place, `wp-login.php`. Every other login
+form in WordPress renders core's own message, and core's message names the
+account: *"The username **bob** is not registered on this site"*
+(`wp-includes/user.php:185`). WooCommerce's my-account form calls `wp_signon()`
+and throws `get_error_message()` verbatim with no branch on the code
+(`includes/class-wc-form-handler.php:1076-1079`).
+
+So `UserEnumeration` normalises at `authenticate` (priority 100, after every core
+authenticator and the spam check) and keeps `login_errors` as a second pass. It
+replaces the *message* and leaves the *code* alone on purpose — the code is never
+rendered, while plugins legitimately branch on it, and a brute-force limiter
+counting `incorrect_password` separately from `invalid_username` should keep
+working.
+
+A timing oracle survives this: core returns before `wp_check_password()` when the
+account does not exist, so an unknown username answers faster. Closing that means
+burning a hash round on every invalid-username attempt — self-inflicted CPU
+amplification an attacker can trigger at will. Not worth it.
 
 ## Three things worth knowing before you change anything
 

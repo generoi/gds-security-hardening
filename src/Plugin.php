@@ -4,6 +4,7 @@ namespace GeneroWP\SecurityHardening;
 
 use GeneroWP\SecurityHardening\Modules\ApplicationPasswords;
 use GeneroWP\SecurityHardening\Modules\ContentSecurityPolicy;
+use GeneroWP\SecurityHardening\Modules\Credentials;
 use GeneroWP\SecurityHardening\Modules\Filesystem;
 use GeneroWP\SecurityHardening\Modules\Headers;
 use GeneroWP\SecurityHardening\Modules\Passwords;
@@ -37,6 +38,7 @@ class Plugin
         Uploads::class,
         UserEnumeration::class,
         Passwords::class,
+        Credentials::class,
         Roles::class,
         Version::class,
         Filesystem::class,
@@ -44,8 +46,22 @@ class Plugin
 
     public const FILTER_MODULES = 'gds_security_hardening_modules';
 
+    protected static bool $booted = false;
+
     public static function boot(): void
     {
+        // Loading the entry file twice must not register everything twice.
+        // Most modules are idempotent — the same filter added twice is harmless
+        // — but Credentials would revoke twice and fire its action twice, and a
+        // double load is easy to arrange: a site adding its own require, or a
+        // test harness that maps the package into mu-plugins and also bootstraps
+        // it directly.
+        if (self::$booted) {
+            return;
+        }
+
+        self::$booted = true;
+
         /**
          * Filters the modules that will be registered.
          *
