@@ -36,6 +36,7 @@ class TwoFactor implements Module
     public function register(): void
     {
         add_action('admin_init', [$this, 'redirectToEnrolment']);
+        add_action('admin_notices', [$this, 'explainTheRestriction']);
         add_filter('user_has_cap', [$this, 'stripCapabilities'], 0, 4);
         add_filter('map_meta_cap', [$this, 'stripMetaCapabilities'], 0, 4);
     }
@@ -103,6 +104,28 @@ class TwoFactor implements Module
 
         wp_safe_redirect(admin_url('profile.php#two-factor-options'));
         exit;
+    }
+
+    /**
+     * Say why the account is restricted.
+     *
+     * Without this the user is redirected to their profile with no explanation,
+     * and everything else they try silently fails — which reads as a broken site
+     * rather than a policy.
+     */
+    public function explainTheRestriction(): void
+    {
+        if ($this->isEnrolled()) {
+            return;
+        }
+
+        printf(
+            '<div class="notice notice-error"><p>%s</p></div>',
+            esc_html__(
+                'Two-factor authentication is required on this site. Set it up below to restore access.',
+                'gds-security-hardening',
+            ),
+        );
     }
 
     /**

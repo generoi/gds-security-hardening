@@ -128,6 +128,27 @@ class TwoFactorTest extends WP_UnitTestCase
      * _wp_get_current_user() has no reentrancy guard while $current_user is
      * empty, so it must not ask for the current user in that window.
      */
+    public function test_an_unenrolled_user_is_told_why(): void
+    {
+        ob_start();
+        $this->module->explainTheRestriction();
+        $notice = ob_get_clean();
+
+        $this->assertStringContainsString('notice-error', $notice);
+        $this->assertStringContainsString('Two-factor authentication is required', $notice);
+    }
+
+    public function test_an_enrolled_user_gets_no_notice(): void
+    {
+        $this->enrol($this->user);
+        wp_set_current_user($this->user);
+
+        ob_start();
+        $this->module->explainTheRestriction();
+
+        $this->assertSame('', ob_get_clean());
+    }
+
     public function test_it_does_not_resolve_the_current_user_mid_resolution(): void
     {
         $previous = $GLOBALS['current_user'] ?? null;
