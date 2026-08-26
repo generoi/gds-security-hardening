@@ -25,26 +25,35 @@ class ContentSecurityPolicy implements Module
      * wp-login.php?interim-login=1 on every admin screen so the session-expired
      * modal can re-authenticate in place.
      *
-     * `object-src 'none'` blocks <object>, <embed> and <applet>. Core emits none
-     * of them in wp-admin — the only <embed> in core is SimplePie's feed
-     * enclosure player, which is frontend-only Flash and QuickTime markup, and
-     * the <object> mentions in wp-admin/js/editor.js are autop regexes cleaning
-     * line breaks, not element creation. PDFs are unaffected: the media modal
-     * renders them as a "Document Preview" <img> built from the generated
-     * thumbnail (wp-includes/media-template.php:427), and object-src does not
-     * govern images.
-     *
-     * What is not swept is plugin admin screens. A plugin embedding a viewer
-     * through <object> or <embed> would break, which is a smaller risk than the
-     * script directives carry — those elements are Flash and Java era — but not
-     * zero. A site that hits it removes the module with the filter.
-     *
      * @var string[]
      */
     public const DIRECTIVES = [
         "base-uri 'self'",
         "frame-ancestors 'self'",
-        "object-src 'none'",
+    ];
+
+    /**
+     * Additional directives for wp-admin only.
+     *
+     * object-src governs <object>, <embed> and <applet>, and 'none' is wrong here:
+     * core's own core/file block renders a PDF preview as
+     * <object type="application/pdf"> (wp-includes/blocks/file.php reaches for the
+     * OBJECT element by name), both in the editor canvas and on the frontend. Under
+     * 'none' the editor shows a silent gap the height of the block where the
+     * document used to be, and an author replacing the file gets no confirmation
+     * that anything happened. That is not a plugin screen anyone could sweep for —
+     * it is core, on the post editor, on any site that attaches documents to posts.
+     *
+     * 'self' keeps what the directive is worth having for: an injected <object>
+     * pointing at an attacker's host is still refused, and so is the Flash and Java
+     * era markup the element mostly exists for. What it permits is a same-origin
+     * document, which is what core embeds. Reaching it means already being able to
+     * put a file in the media library.
+     *
+     * @var string[]
+     */
+    public const ADMIN_DIRECTIVES = [
+        "object-src 'self'",
     ];
 
     /**
@@ -54,10 +63,14 @@ class ContentSecurityPolicy implements Module
      * login screen posts back to wp-login.php, with no plugin onboarding flows to
      * guess about.
      *
+     * object-src can stay at 'none' here for the same reason: nothing on the login
+     * screen embeds a document, so there is no core behaviour to leave room for.
+     *
      * @var string[]
      */
     public const LOGIN_DIRECTIVES = [
         "form-action 'self'",
+        "object-src 'none'",
     ];
 
     protected ?string $nonce = null;
@@ -91,7 +104,10 @@ class ContentSecurityPolicy implements Module
      */
     public function sendAdminPolicy(): void
     {
-        $this->send(self::DIRECTIVES);
+        $this->send([
+            ...self::DIRECTIVES,
+            ...self::ADMIN_DIRECTIVES,
+        ]);
     }
 
     /**

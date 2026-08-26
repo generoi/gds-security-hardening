@@ -14,8 +14,25 @@ class ContentSecurityPolicyTest extends WP_UnitTestCase
         $this->assertSame([
             "base-uri 'self'",
             "frame-ancestors 'self'",
-            "object-src 'none'",
         ], ContentSecurityPolicy::DIRECTIVES);
+    }
+
+    /**
+     * core/file renders its PDF preview as <object type="application/pdf">, in the
+     * editor canvas as well as on the frontend. 'none' blanks it out on every post
+     * that attaches a document, so the admin leaves room for a same-origin one.
+     */
+    public function test_the_admin_allows_a_same_origin_object(): void
+    {
+        $this->assertSame(["object-src 'self'"], ContentSecurityPolicy::ADMIN_DIRECTIVES);
+    }
+
+    /**
+     * Nothing on the login screen embeds a document, so nothing is owed there.
+     */
+    public function test_the_login_screen_allows_no_object_at_all(): void
+    {
+        $this->assertContains("object-src 'none'", ContentSecurityPolicy::LOGIN_DIRECTIVES);
     }
 
     /**

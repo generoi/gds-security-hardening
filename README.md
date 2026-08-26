@@ -116,6 +116,14 @@ needs `eval` (core #62894) — and the nonce-free alternative,
 plugins legitimately use on their own screens. Enforcing that safely needs a
 per-site plugin sweep, which is what this package does not do.
 
+`object-src` is `'self'` there rather than `'none'`, because core's own
+`core/file` block renders a PDF preview as `<object type="application/pdf">`, in
+the editor canvas as well as on the frontend. Under `'none'` the editor shows a
+silent gap the height of the block where the document used to be, on any site
+that attaches documents to posts. `'self'` still refuses an injected `<object>`
+pointing at an attacker's host. wp-login.php embeds no documents, so it keeps
+`'none'`.
+
 **wp-login.php** gets a full Strict CSP: `script-src 'nonce-…' 'strict-dynamic'`,
 no `unsafe-inline`. Nothing without that request's nonce executes — injected
 script tags, inline handlers, `javascript:` URIs and `eval` all fail — which is
