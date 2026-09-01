@@ -149,7 +149,7 @@ class Passwords implements Module
 
         wp_enqueue_script(
             'gds-security-hardening-password',
-            plugins_url('assets/hide-weak-password.js', dirname(__DIR__).'/gds-security-hardening.php'),
+            plugins_url('assets/hide-weak-password.js', dirname(__DIR__, 2).'/gds-security-hardening.php'),
             [],
             null,
             true,
