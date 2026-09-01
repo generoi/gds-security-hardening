@@ -56,7 +56,15 @@ class UserEnumeration implements Module
     public function dropAuthorLinks(): void
     {
         foreach (get_post_types(['show_in_rest' => true]) as $postType) {
-            if (! post_type_supports($postType, 'author')) {
+            // Mirrors the condition in WP_REST_Posts_Controller::prepare_links():
+            // post and page get the link whether or not they still support
+            // authors, so a site that has called
+            // remove_post_type_support('page', 'author') would otherwise keep
+            // emitting a link nothing here is attached to.
+            $emitsAuthorLink = in_array($postType, ['post', 'page'], true)
+                || post_type_supports($postType, 'author');
+
+            if (! $emitsAuthorLink) {
                 continue;
             }
 

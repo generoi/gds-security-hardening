@@ -93,6 +93,31 @@ class UserEnumerationTest extends WP_UnitTestCase
     {
         wp_set_current_user(0);
 
+        $this->assertArrayNotHasKey('author', $this->pageLinks());
+    }
+
+    /**
+     * WP_REST_Posts_Controller::prepare_links() gives post and page the author
+     * link on `in_array($post->post_type, ['post', 'page'])` *or* author support,
+     * so dropping the support does not drop the link. Attaching only on
+     * post_type_supports() — the obvious reading — would leave core still
+     * emitting a link with nothing hooked to remove it.
+     */
+    public function test_a_page_that_no_longer_supports_authors_is_still_covered(): void
+    {
+        remove_post_type_support('page', 'author');
+        (new UserEnumeration)->dropAuthorLinks();
+        wp_set_current_user(0);
+
+        try {
+            $this->assertArrayNotHasKey('author', $this->pageLinks());
+        } finally {
+            add_post_type_support('page', 'author');
+        }
+    }
+
+    protected function pageLinks(): array
+    {
         $page = self::factory()->post->create([
             'post_type' => 'page',
             'post_status' => 'publish',
@@ -101,9 +126,6 @@ class UserEnumerationTest extends WP_UnitTestCase
 
         $request = new WP_REST_Request('GET', "/wp/v2/pages/{$page}");
 
-        $this->assertArrayNotHasKey(
-            'author',
-            rest_get_server()->dispatch($request)->get_links()
-        );
+        return rest_get_server()->dispatch($request)->get_links();
     }
 }
