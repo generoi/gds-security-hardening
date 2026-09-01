@@ -4,6 +4,7 @@ namespace GeneroWP\SecurityHardening\Modules;
 
 use GeneroWP\SecurityHardening\Module;
 use WP_Error;
+use WP_REST_Response;
 
 class UserEnumeration implements Module
 {
@@ -22,6 +23,66 @@ class UserEnumeration implements Module
         // wp_authenticate_spam_check (99).
         add_filter('authenticate', [$this, 'genericAuthenticationError'], 100, 2);
         add_action('lost_password', [$this, 'alwaysRedirectLostPassword']);
+
+        // rest_api_init rather than init: every post type is registered by then,
+        // including the ones plugins add on init at a later priority than ours.
+        add_action('rest_api_init', [$this, 'dropAuthorLinks']);
+    }
+
+    /**
+     * Stop `_embed` resolving the author behind a published post.
+     *
+     * `?author=<id>` is closed above, and a site that closes /wp/v2/users closes
+     * the direct read. Neither reaches this: WP_REST_Server::response_to_data()
+     * resolves every link marked `embeddable` by calling dispatch() itself, so an
+     * embed sub-request never passes through serve_request() and never fires
+     * rest_authentication_errors. `/wp/v2/posts?_embed=1` therefore answers with
+     * the user record behind each post — display name, nicename and author
+     * archive URL, plus whatever fields plugins register on the users
+     * controller — regardless of what the site decided about /wp/v2/users.
+     *
+     * Dropping the link rather than filtering the user payload, because the link
+     * is what makes the sub-request happen at all.
+     *
+     * This does not close the direct route. On a stock install /wp/v2/users
+     * already lists the authors of published posts to anonymous callers, and
+     * closing that is a policy decision a package cannot make — core exposes it
+     * deliberately, and the block editor and plenty of themes read it. What this
+     * removes is the path that ignores whichever policy the site chose.
+     *
+     * Authenticated callers keep the link: the block editor resolves post authors
+     * through it, and anyone logged in can read the users controller anyway.
+     */
+    public function dropAuthorLinks(): void
+    {
+        foreach (get_post_types(['show_in_rest' => true]) as $postType) {
+            // Mirrors the condition in WP_REST_Posts_Controller::prepare_links():
+            // post and page get the link whether or not they still support
+            // authors, so a site that has called
+            // remove_post_type_support('page', 'author') would otherwise keep
+            // emitting a link nothing here is attached to.
+            $emitsAuthorLink = in_array($postType, ['post', 'page'], true)
+                || post_type_supports($postType, 'author');
+
+            if (! $emitsAuthorLink) {
+                continue;
+            }
+
+            add_filter("rest_prepare_{$postType}", [$this, 'removeAuthorLink']);
+        }
+    }
+
+    /**
+     * @param  mixed  $response  A controller may return WP_Error, so this is not
+     *                           typed to WP_REST_Response.
+     */
+    public function removeAuthorLink(mixed $response): mixed
+    {
+        if ($response instanceof WP_REST_Response && ! is_user_logged_in()) {
+            $response->remove_link('author');
+        }
+
+        return $response;
     }
 
     /**

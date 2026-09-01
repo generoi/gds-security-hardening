@@ -19,7 +19,7 @@ composer require generoi/gds-security-hardening
 | `ApplicationPasswords` | Closes the remote authorization flow; keeps passwords to `manage_options` |
 | `Headers` | HSTS, nosniff, X-Frame-Options, Referrer-Policy on frontend, admin, login **and REST** |
 | `Uploads` | Keeps parser-heavy formats (PDF/EPS/SVG/HEIC/TIFF/macro-Office) to editors and above |
-| `UserEnumeration` | Blocks `?author=<id>`; makes authentication, login and lost-password responses uniform |
+| `UserEnumeration` | Blocks `?author=<id>` and the REST `_embed` author link; makes authentication, login and lost-password responses uniform |
 | `Passwords` | 12-character minimum, enforced **server side** |
 | `Credentials` | A password reset revokes application passwords and destroys sessions |
 | `Roles` | Pins `default_role` |
@@ -71,6 +71,28 @@ A timing oracle survives this: core returns before `wp_check_password()` when th
 account does not exist, so an unknown username answers faster. Closing that means
 burning a hash round on every invalid-username attempt — self-inflicted CPU
 amplification an attacker can trigger at will. Not worth it.
+
+### `_embed` does not pass through REST authentication
+
+Whatever a site decides about `/wp/v2/users`, `?_embed=1` ignores it.
+`WP_REST_Server::response_to_data()` resolves every link marked `embeddable` by
+calling `dispatch()` itself, so an embed sub-request never goes through
+`serve_request()` and never fires `rest_authentication_errors`. A site whose
+mu-plugins close `/wp/v2/users` to anonymous callers still answers
+`/wp/v2/posts?_embed=1` with the user record behind each published post — display
+name, nicename, author archive URL, and whatever fields plugins register on the
+users controller.
+
+`UserEnumeration` drops the author link for anonymous callers, on every post type
+that opts into REST and supports authors. Dropping the link rather than filtering
+the user payload, because the link is what makes the sub-request happen at all.
+
+It does **not** close the direct route. On a stock install `/wp/v2/users` already
+lists the authors of published posts anonymously, and closing that is a policy
+decision this package will not make for a site — core exposes it deliberately, the
+block editor reads it, and so do plenty of themes. What this removes is the path
+that ignores whichever policy the site chose. Authenticated callers keep the link,
+so the editor is unaffected.
 
 ## Three things worth knowing before you change anything
 
