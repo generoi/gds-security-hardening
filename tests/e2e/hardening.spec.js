@@ -57,8 +57,12 @@ test.describe('hardening over real HTTP', () => {
             .match(/\d+\.\d+(\.\d+)?/)[0];
         const body = await (await request.get('/')).text();
 
-        for (const version of body.match(/[?&]ver=([^"'&]+)/g) || []) {
-            expect(version).not.toContain(wpVersion);
+        for (const [, version] of body.matchAll(/[?&]ver=([^"'&]+)/g)) {
+            // Equality, not containment: an asset legitimately versioned 3.7.1
+            // contains "7.1" as a substring, so toContain() failed the suite on
+            // a plugin version the docblock above explicitly allows. A leak is
+            // the value BEING core's version, not merely spelling it.
+            expect(version).not.toBe(wpVersion);
         }
     });
 
