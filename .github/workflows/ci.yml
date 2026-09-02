@@ -8,6 +8,8 @@ on:
 jobs:
   static:
     runs-on: ubuntu-latest
+    # Lint and static analysis only; it has never run past a minute.
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +28,13 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # Without this the job inherits GitHub's 360-minute ceiling. On
+    # 2026-08-18 two runs wedged in `playwright install` and held a runner
+    # for six hours each before GitHub killed them, which cost more than
+    # this repository spends in a normal month. A cold browser download
+    # can legitimately push the job past 10 minutes, so this is set at
+    # roughly twice that — reaching it means wedged, not slow.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
