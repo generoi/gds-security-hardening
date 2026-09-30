@@ -9,7 +9,8 @@
     ],
     "mappings": {
         "wp-content/mu-plugins/gds-security-hardening": ".",
-        "wp-content/mu-plugins/000-security-hardening-loader.php": "./tests/loader.php"
+        "wp-content/mu-plugins/000-security-hardening-loader.php": "./tests/loader.php",
+        "wp-content/mu-plugins/001-two-factor-e2e.php": "./tests/two-factor-e2e.php"
     },
     "env": {
         "tests": {
