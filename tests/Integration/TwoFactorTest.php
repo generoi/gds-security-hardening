@@ -32,6 +32,7 @@ class TwoFactorTest extends WP_UnitTestCase
 
     public function tear_down(): void
     {
+        remove_all_filters(TwoFactor::FILTER_REQUIRED);
         remove_filter('user_has_cap', [$this->module, 'stripCapabilities'], 0);
         remove_filter('map_meta_cap', [$this->module, 'stripMetaCapabilities'], 0);
         remove_action('admin_init', [$this->module, 'redirectToEnrolment']);
@@ -147,6 +148,45 @@ class TwoFactorTest extends WP_UnitTestCase
         $this->module->explainTheRestriction();
 
         $this->assertSame('', ob_get_clean());
+    }
+
+    public function test_a_user_the_site_exempts_keeps_their_capabilities(): void
+    {
+        add_filter(TwoFactor::FILTER_REQUIRED, '__return_false');
+
+        $this->assertTrue($this->module->isEnrolled());
+        $this->assertTrue(current_user_can('manage_options'));
+        $this->assertTrue(current_user_can('edit_user', self::factory()->user->create()));
+    }
+
+    /**
+     * The case the filter exists for: a site scoping enforcement by role still
+     * enforces it on the roles it keeps.
+     */
+    public function test_scoping_by_role_exempts_other_roles_only(): void
+    {
+        add_filter(TwoFactor::FILTER_REQUIRED, fn (bool $required, \WP_User $user) => $required && in_array('administrator', $user->roles, true), 10, 2);
+
+        $this->assertFalse(current_user_can('manage_options'), 'The administrator is still enforced.');
+
+        $customer = self::factory()->user->create(['role' => 'editor']);
+        wp_set_current_user($customer);
+
+        $this->assertTrue(current_user_can('edit_posts'), 'Other roles keep their capabilities.');
+    }
+
+    /**
+     * A callback that does check capabilities must not recurse.
+     */
+    public function test_a_filter_callback_checking_capabilities_does_not_recurse(): void
+    {
+        add_filter(TwoFactor::FILTER_REQUIRED, function (bool $required) {
+            current_user_can('manage_options');
+
+            return $required;
+        });
+
+        $this->assertFalse(current_user_can('manage_options'));
     }
 
     public function test_it_does_not_resolve_the_current_user_mid_resolution(): void

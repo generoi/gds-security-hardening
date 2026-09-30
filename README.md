@@ -128,6 +128,10 @@ every account out of everything but their profile until they enrol — a decisio
 site makes, not a package. Without that plugin active it is inert rather than
 locking people out of a site with no way to enrol.
 
+It applies to every logged-in user. Narrow it with
+`gds_security_hardening_two_factor_required` on a site with WooCommerce
+customers or integration users — see `TwoFactor::FILTER_REQUIRED`.
+
 ### The CSP is asymmetric on purpose
 
 **wp-admin** gets only directives that need no per-site verification, and says
