@@ -29,6 +29,25 @@ class TwoFactor implements Module
     public const ALLOWED_CAPABILITY = 'read';
 
     /**
+     * Filters whether the current user has to enrol at all.
+     *
+     * Every logged-in user by default. A site with customer accounts or an
+     * integration user narrows it — a WooCommerce customer stripped to `read`
+     * loses view_order and pay_for_order, and a service account cannot scan a QR
+     * code:
+     *
+     *     add_filter(TwoFactor::FILTER_REQUIRED, fn (bool $required, WP_User $user) =>
+     *         $required && in_array('administrator', $user->roles, true)
+     *     , 10, 2);
+     *
+     * Runs inside the capability pipeline, so decide from the user object —
+     * $user->roles, is_super_admin() — never current_user_can() or user_can(). A
+     * capability check here is answered with the reentrancy guard still up, which
+     * fails open, so it reports capabilities the user may not keep.
+     */
+    public const FILTER_REQUIRED = 'gds_security_hardening_two_factor_required';
+
+    /**
      * Guards against re-entering the capability pipeline from inside it.
      */
     protected static bool $resolving = false;
@@ -42,7 +61,8 @@ class TwoFactor implements Module
     }
 
     /**
-     * Whether the current user has two-factor set up.
+     * Whether the current user has two-factor set up, or is exempt from it
+     * through FILTER_REQUIRED.
      *
      * Resolved outside the capability pipeline: the two-factor plugin's own
      * lookups check capabilities, so calling this from within map_meta_cap or
@@ -84,6 +104,10 @@ class TwoFactor implements Module
             }
 
             if (! class_exists(Two_Factor_Core::class)) {
+                return true;
+            }
+
+            if (! apply_filters(self::FILTER_REQUIRED, true, wp_get_current_user())) {
                 return true;
             }
 
