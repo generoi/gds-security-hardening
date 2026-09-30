@@ -35,7 +35,9 @@ class TwoFactorTest extends WP_UnitTestCase
         remove_all_filters(TwoFactor::FILTER_REQUIRED);
         remove_filter('user_has_cap', [$this->module, 'stripCapabilities'], 0);
         remove_filter('map_meta_cap', [$this->module, 'stripMetaCapabilities'], 0);
+        remove_filter('woocommerce_prevent_admin_access', [$this->module, 'letEnrolmentPastWooCommerce']);
         remove_action('admin_init', [$this->module, 'redirectToEnrolment']);
+        remove_action('admin_page_access_denied', [$this->module, 'redirectToEnrolment']);
 
         parent::tear_down();
     }
@@ -187,6 +189,35 @@ class TwoFactorTest extends WP_UnitTestCase
         });
 
         $this->assertFalse(current_user_can('manage_options'));
+    }
+
+    /**
+     * WooCommerce keeps anyone without edit_posts, manage_woocommerce or
+     * view_admin_dashboard out of wp-admin, and an unenrolled user has none of
+     * them, so without this they could never reach profile.php to enrol. The
+     * browser-level version is tests/e2e/two-factor.spec.js.
+     */
+    public function test_an_unenrolled_user_gets_past_woocommerces_admin_gate(): void
+    {
+        $this->assertFalse(current_user_can('edit_posts'), 'Fixture: WooCommerce would gate this user.');
+        $this->assertFalse(apply_filters('woocommerce_prevent_admin_access', true));
+    }
+
+    public function test_an_exempt_user_is_still_kept_out_by_woocommerce(): void
+    {
+        add_filter(TwoFactor::FILTER_REQUIRED, '__return_false');
+        wp_set_current_user(self::factory()->user->create(['role' => 'customer']));
+
+        $this->assertTrue(apply_filters('woocommerce_prevent_admin_access', true));
+    }
+
+    public function test_woocommerces_decision_stands_for_an_enrolled_user(): void
+    {
+        $this->enrol($this->user);
+        wp_set_current_user($this->user);
+
+        $this->assertTrue(apply_filters('woocommerce_prevent_admin_access', true));
+        $this->assertFalse(apply_filters('woocommerce_prevent_admin_access', false));
     }
 
     public function test_it_does_not_resolve_the_current_user_mid_resolution(): void

@@ -55,9 +55,29 @@ class TwoFactor implements Module
     public function register(): void
     {
         add_action('admin_init', [$this, 'redirectToEnrolment']);
+        add_action('admin_page_access_denied', [$this, 'redirectToEnrolment']);
         add_action('admin_notices', [$this, 'explainTheRestriction']);
         add_filter('user_has_cap', [$this, 'stripCapabilities'], 0, 4);
         add_filter('map_meta_cap', [$this, 'stripMetaCapabilities'], 0, 4);
+        add_filter('woocommerce_prevent_admin_access', [$this, 'letEnrolmentPastWooCommerce']);
+    }
+
+    /**
+     * Let an unenrolled user past WooCommerce's wp-admin gate.
+     *
+     * WC_Admin::prevent_admin_access() sends anyone without edit_posts,
+     * manage_woocommerce or view_admin_dashboard to My Account, and this module
+     * has just stripped all three. profile.php, where the user enrols, became
+     * unreachable: they landed on /my-account/#two-factor-options with no way
+     * forward. redirectToEnrolment() still sends them from every other admin
+     * page to their profile, so this opens nothing but enrolment.
+     *
+     * A user the site exempts through FILTER_REQUIRED, such as a customer,
+     * counts as enrolled, so WooCommerce keeps them out of wp-admin as before.
+     */
+    public function letEnrolmentPastWooCommerce(bool $prevent): bool
+    {
+        return $prevent && $this->isEnrolled();
     }
 
     /**
@@ -117,6 +137,17 @@ class TwoFactor implements Module
         }
     }
 
+    /**
+     * Send an unenrolled user to the one screen they can use.
+     *
+     * Hooked twice, because admin_init alone comes too late for most screens.
+     * wp-admin/admin.php requires menu.php before firing admin_init, and menu.php
+     * ends with core's own page access check: a screen the stripped user may not
+     * open, such as edit.php, wp_die()s there with "Sorry, you are not allowed to
+     * access this page." admin_page_access_denied fires just before that die.
+     * admin_init still covers the screens that pass the check, like the
+     * dashboard.
+     */
     public function redirectToEnrolment(): void
     {
         global $pagenow;
