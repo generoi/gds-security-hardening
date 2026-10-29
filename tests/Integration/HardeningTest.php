@@ -40,6 +40,16 @@ class HardeningTest extends WP_UnitTestCase
         $this->assertStringContainsString('ver=', $src);
     }
 
+    public function test_acorn_does_not_advertise_its_version(): void
+    {
+        $this->assertFalse(apply_filters('acorn/powered_by', true));
+    }
+
+    public function test_oembed_discovery_is_off(): void
+    {
+        $this->assertFalse(apply_filters('embed_oembed_discover', true));
+    }
+
     public function test_a_src_less_handle_does_not_fatal(): void
     {
         $this->assertFalse(apply_filters('style_loader_src', false, 'handle'));

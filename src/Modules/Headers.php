@@ -52,8 +52,13 @@ class Headers implements Module
     /**
      * Only meaningful over TLS, and a browser ignores it on plain http anyway —
      * but sending it there would also break a local http environment.
+     *
+     * No `preload`: it is what makes a domain eligible for the browser preload
+     * lists, and getting off them again is practically irreversible. That is a
+     * decision for whoever owns the domain, not something a package should sign
+     * every site up for from wp-admin responses.
      */
-    public const STRICT_TRANSPORT_SECURITY = 'max-age=63072000; includeSubDomains; preload';
+    public const STRICT_TRANSPORT_SECURITY = 'max-age=63072000; includeSubDomains';
 
     public function register(): void
     {

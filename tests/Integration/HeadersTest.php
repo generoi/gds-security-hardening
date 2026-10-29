@@ -35,6 +35,15 @@ class HeadersTest extends WP_UnitTestCase
         $this->assertStringContainsString('max-age=', Headers::STRICT_TRANSPORT_SECURITY);
     }
 
+    /**
+     * Preload-list submission is practically irreversible, and a site's frontend
+     * HSTS decides it as much as this one does. The two must not disagree.
+     */
+    public function test_hsts_does_not_opt_into_preload(): void
+    {
+        $this->assertStringNotContainsString('preload', Headers::STRICT_TRANSPORT_SECURITY);
+    }
+
     public function test_the_headers_are_filterable(): void
     {
         $callback = fn (array $headers) => [...$headers, 'X-Test' => 'value'];

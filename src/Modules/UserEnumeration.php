@@ -27,28 +27,73 @@ class UserEnumeration implements Module
         // rest_api_init rather than init: every post type is registered by then,
         // including the ones plugins add on init at a later priority than ours.
         add_action('rest_api_init', [$this, 'dropAuthorLinks']);
+
+        add_filter('rest_endpoints', [$this, 'hideUsersRoutes']);
+        add_filter('oembed_response_data', [$this, 'dropOembedAuthor']);
+    }
+
+    /**
+     * Keep /wp/v2/users* away from anonymous callers.
+     *
+     * On a stock install the route lists every author of published content with
+     * their slug, which is the nicename and usually the login. Anonymous REST
+     * consumers have no use for it; the block editor and author selectors read it
+     * logged in, and keep it.
+     *
+     * Hidden rather than refused, so it reads as rest_no_route (404) — the same
+     * answer a site that never had the route gives — instead of a 401 that
+     * confirms there is something behind it.
+     *
+     * rest_endpoints is applied when the server matches a request, after
+     * rest_authentication_errors has run, so a cookie without a nonce has
+     * already been reset to anonymous by the time this reads the current user.
+     *
+     * @param  array<string, mixed>  $endpoints
+     * @return array<string, mixed>
+     */
+    public function hideUsersRoutes(array $endpoints): array
+    {
+        if (is_user_logged_in()) {
+            return $endpoints;
+        }
+
+        foreach (array_keys($endpoints) as $route) {
+            if (str_starts_with($route, '/wp/v2/users')) {
+                unset($endpoints[$route]);
+            }
+        }
+
+        return $endpoints;
+    }
+
+    /**
+     * oEmbed answers anonymously, and core puts the author's display name and
+     * archive URL — which carries the nicename — in every response.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function dropOembedAuthor(array $data): array
+    {
+        unset($data['author_name'], $data['author_url']);
+
+        return $data;
     }
 
     /**
      * Stop `_embed` resolving the author behind a published post.
      *
-     * `?author=<id>` is closed above, and a site that closes /wp/v2/users closes
-     * the direct read. Neither reaches this: WP_REST_Server::response_to_data()
+     * `?author=<id>` is closed above, and hideUsersRoutes() closes the direct
+     * read. Neither reaches this on its own: WP_REST_Server::response_to_data()
      * resolves every link marked `embeddable` by calling dispatch() itself, so an
      * embed sub-request never passes through serve_request() and never fires
      * rest_authentication_errors. `/wp/v2/posts?_embed=1` therefore answers with
      * the user record behind each post — display name, nicename and author
      * archive URL, plus whatever fields plugins register on the users
-     * controller — regardless of what the site decided about /wp/v2/users.
+     * controller — whatever a site's REST wall decided about /wp/v2/users.
      *
      * Dropping the link rather than filtering the user payload, because the link
      * is what makes the sub-request happen at all.
-     *
-     * This does not close the direct route. On a stock install /wp/v2/users
-     * already lists the authors of published posts to anonymous callers, and
-     * closing that is a policy decision a package cannot make — core exposes it
-     * deliberately, and the block editor and plenty of themes read it. What this
-     * removes is the path that ignores whichever policy the site chose.
      *
      * Authenticated callers keep the link: the block editor resolves post authors
      * through it, and anyone logged in can read the users controller anyway.
