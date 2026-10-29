@@ -17,13 +17,15 @@ composer require generoi/gds-security-hardening
 | `XmlRpc` | Exits on `XMLRPC_REQUEST` before anything registers; filters `xmlrpc_enabled` off; removes the RSD link and `X-Pingback` |
 | `Rest` | Disables JSONP; refuses a read overridden into a write; removes REST discovery output |
 | `ApplicationPasswords` | Closes the remote authorization flow; keeps passwords to `manage_options` |
-| `Headers` | HSTS, nosniff, X-Frame-Options, Referrer-Policy on frontend, admin, login **and REST** |
+| `Headers` | HSTS (no `preload`), nosniff, X-Frame-Options, Referrer-Policy on frontend, admin, login **and REST** |
 | `Uploads` | Keeps parser-heavy formats (PDF/EPS/SVG/HEIC/TIFF/macro-Office) to editors and above |
-| `UserEnumeration` | Blocks `?author=<id>` and the REST `_embed` author link; makes authentication, login and lost-password responses uniform |
+| `UserEnumeration` | Blocks `?author=<id>`, `/wp/v2/users*` and the REST `_embed` author link for anonymous callers; strips the author from oEmbed; makes authentication, login and lost-password responses uniform |
+| `AuthorArchives` | Every author archive is a 404, existing name or not; drops core's users sitemap and Yoast's author sitemap |
+| `Embeds` | Turns off oEmbed discovery, so embeds come only from registered providers |
 | `Passwords` | 12-character minimum, enforced **server side** |
 | `Credentials` | A password reset revokes application passwords and destroys sessions |
 | `Roles` | Pins `default_role` |
-| `Version` | Removes the generator tag; replaces `?ver=` with a site-salted token |
+| `Version` | Removes the generator tag; replaces `?ver=` with a site-salted token; drops Acorn's `X-Powered-By` |
 | `ContentSecurityPolicy` | Four no-upkeep directives on admin; a full Strict CSP (nonce + `strict-dynamic`) on wp-login.php |
 | `Filesystem` | Stops WordPress rewriting `.htaccess` |
 
@@ -87,12 +89,30 @@ users controller.
 that opts into REST and supports authors. Dropping the link rather than filtering
 the user payload, because the link is what makes the sub-request happen at all.
 
-It does **not** close the direct route. On a stock install `/wp/v2/users` already
-lists the authors of published posts anonymously, and closing that is a policy
-decision this package will not make for a site — core exposes it deliberately, the
-block editor reads it, and so do plenty of themes. What this removes is the path
-that ignores whichever policy the site chose. Authenticated callers keep the link,
-so the editor is unaffected.
+The direct route is closed as well: `/wp/v2/users*` is removed from the route table
+for anonymous callers, so it answers `rest_no_route` like a site that never had it.
+Logged-in users keep both the route and the link, so the block editor's author
+panel and user search are unaffected. A theme or headless frontend that reads
+`/wp/v2/users` anonymously stops working — widen it from the site, at a later
+priority on `rest_endpoints`.
+
+### Author archives are closed outright
+
+`/author/<nicename>/` answers for a name that exists and 404s for one that does
+not, and the sitemaps list every name without guessing. None of our sites use
+author archives, so `AuthorArchives` turns every author request into a 404 at
+`request` — the pretty URL, `?author=N` and `?author_name=`, POST bodies included —
+before `redirect_canonical()` or Yoast can answer an existing name differently.
+
+A site that does use author archives drops the module; `UserEnumeration` still
+closes `?author=<id>` for it:
+
+```php
+add_filter('gds_security_hardening_modules', fn ($modules) => array_diff(
+    $modules,
+    [\GeneroWP\SecurityHardening\Modules\AuthorArchives::class],
+));
+```
 
 ## Three things worth knowing before you change anything
 

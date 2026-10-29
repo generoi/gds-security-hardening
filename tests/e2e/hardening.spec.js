@@ -71,4 +71,24 @@ test.describe('hardening over real HTTP', () => {
 
         expect(response.headers()['location'] || '').not.toMatch(/\/author\//);
     });
+
+    /**
+     * The query-string form, because wp-env's Apache ignores .htaccess and the
+     * pretty /author/<name>/ URL never routes there. Both names must get the
+     * same answer, or the archive is still a login-name oracle.
+     */
+    test('author archives 404 for existing and unknown names alike', async ({ request }) => {
+        const existing = await request.get('/?author_name=admin', { maxRedirects: 0 });
+        const unknown = await request.get('/?author_name=nobody-by-this-name', { maxRedirects: 0 });
+
+        expect(existing.status()).toBe(404);
+        expect(unknown.status()).toBe(404);
+    });
+
+    test('the users REST route does not exist for an anonymous caller', async ({ request }) => {
+        const response = await request.get('/?rest_route=/wp/v2/users');
+
+        expect(response.status()).toBe(404);
+        expect((await response.json()).code).toBe('rest_no_route');
+    });
 });

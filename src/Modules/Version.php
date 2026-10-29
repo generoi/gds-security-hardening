@@ -5,7 +5,7 @@ namespace GeneroWP\SecurityHardening\Modules;
 use GeneroWP\SecurityHardening\Module;
 
 /**
- * Do not advertise the WordPress version.
+ * Do not advertise the WordPress version, or the framework's.
  */
 class Version implements Module
 {
@@ -14,6 +14,10 @@ class Version implements Module
         add_filter('the_generator', '__return_empty_string');
         add_filter('script_loader_src', [$this, 'stripVersion']);
         add_filter('style_loader_src', [$this, 'stripVersion']);
+
+        // Acorn sends `X-Powered-By: Acorn <version> (Laravel <version>)` on
+        // every response it boots for. Inert on a site without Acorn.
+        add_filter('acorn/powered_by', '__return_false');
     }
 
     /**

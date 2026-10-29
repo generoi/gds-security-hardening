@@ -7,7 +7,7 @@ use WP_REST_Request;
 use WP_UnitTestCase;
 
 /**
- * The `_embed` half of UserEnumeration.
+ * The REST and oEmbed half of UserEnumeration.
  *
  * Driven through rest_get_server()->dispatch() rather than by calling the filter,
  * because dispatch() is exactly the path an embed sub-request takes — the one
@@ -114,6 +114,41 @@ class UserEnumerationTest extends WP_UnitTestCase
         } finally {
             add_post_type_support('page', 'author');
         }
+    }
+
+    /**
+     * Hidden, so the anonymous answer is rest_no_route rather than a 401 that
+     * confirms there is something behind it.
+     */
+    public function test_the_users_routes_do_not_exist_for_an_anonymous_caller(): void
+    {
+        wp_set_current_user(0);
+
+        $response = rest_get_server()->dispatch(new WP_REST_Request('GET', '/wp/v2/users'));
+
+        $this->assertSame(404, $response->get_status());
+        $this->assertSame('rest_no_route', $response->get_data()['code']);
+    }
+
+    /**
+     * The block editor's author panel and user search read it logged in.
+     */
+    public function test_a_logged_in_editor_keeps_them(): void
+    {
+        wp_set_current_user(self::factory()->user->create(['role' => 'editor']));
+
+        $response = rest_get_server()->dispatch(new WP_REST_Request('GET', '/wp/v2/users'));
+
+        $this->assertSame(200, $response->get_status());
+    }
+
+    public function test_oembed_responses_carry_no_author(): void
+    {
+        $data = get_oembed_response_data($this->post(), 600);
+
+        $this->assertArrayNotHasKey('author_name', $data);
+        $this->assertArrayNotHasKey('author_url', $data);
+        $this->assertArrayHasKey('title', $data);
     }
 
     protected function pageLinks(): array

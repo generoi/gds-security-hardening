@@ -3,8 +3,10 @@
 namespace GeneroWP\SecurityHardening;
 
 use GeneroWP\SecurityHardening\Modules\ApplicationPasswords;
+use GeneroWP\SecurityHardening\Modules\AuthorArchives;
 use GeneroWP\SecurityHardening\Modules\ContentSecurityPolicy;
 use GeneroWP\SecurityHardening\Modules\Credentials;
+use GeneroWP\SecurityHardening\Modules\Embeds;
 use GeneroWP\SecurityHardening\Modules\Filesystem;
 use GeneroWP\SecurityHardening\Modules\Headers;
 use GeneroWP\SecurityHardening\Modules\Passwords;
@@ -37,6 +39,8 @@ class Plugin
         ContentSecurityPolicy::class,
         Uploads::class,
         UserEnumeration::class,
+        AuthorArchives::class,
+        Embeds::class,
         Passwords::class,
         Credentials::class,
         Roles::class,
