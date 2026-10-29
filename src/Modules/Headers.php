@@ -92,7 +92,7 @@ class Headers implements Module
             return;
         }
 
-        $headers = $privileged ? [...self::HEADERS, ...self::PRIVILEGED_HEADERS] : self::HEADERS;
+        $headers = $privileged ? array_merge(self::HEADERS, self::PRIVILEGED_HEADERS) : self::HEADERS;
 
         if (is_ssl()) {
             $headers['Strict-Transport-Security'] = self::STRICT_TRANSPORT_SECURITY;
