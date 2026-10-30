@@ -83,7 +83,7 @@ class Headers implements Module
      */
     public function merge(array $headers): array
     {
-        return array_merge($headers, self::HEADERS);
+        return array_merge($headers, $this->headers());
     }
 
     public function send(bool $privileged = false): void
@@ -92,15 +92,25 @@ class Headers implements Module
             return;
         }
 
+        foreach ($this->headers($privileged) as $header => $value) {
+            header("{$header}: {$value}");
+        }
+    }
+
+    /**
+     * Use the same policy for WP's frontend header array and direct responses.
+     *
+     * @return array<string, string>
+     */
+    protected function headers(bool $privileged = false): array
+    {
         $headers = $privileged ? array_merge(self::HEADERS, self::PRIVILEGED_HEADERS) : self::HEADERS;
 
         if (is_ssl()) {
             $headers['Strict-Transport-Security'] = self::STRICT_TRANSPORT_SECURITY;
         }
 
-        foreach (apply_filters('gds_security_hardening_headers', $headers, $privileged) as $header => $value) {
-            header("{$header}: {$value}");
-        }
+        return apply_filters('gds_security_hardening_headers', $headers, $privileged);
     }
 
     public function sendPrivileged(): void
