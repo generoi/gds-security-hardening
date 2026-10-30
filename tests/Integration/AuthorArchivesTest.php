@@ -3,6 +3,7 @@
 namespace GeneroWP\SecurityHardening\Tests\Integration;
 
 use GeneroWP\SecurityHardening\Modules\AuthorArchives;
+use WP_Posts_List_Table;
 use WP_Sitemaps_Posts;
 use WP_Sitemaps_Users;
 use WP_UnitTestCase;
@@ -72,6 +73,54 @@ class AuthorArchivesTest extends WP_UnitTestCase
         $vars = ['pagename' => 'about'];
 
         $this->assertSame($vars, (new AuthorArchives)->notFound($vars));
+    }
+
+    /**
+     * Core's list tables run wp() inside the admin, so the filter fires there
+     * too, with the author as a list filter rather than an archive.
+     */
+    public function test_admin_requests_keep_their_author_query_var(): void
+    {
+        set_current_screen('edit.php');
+
+        $vars = ['post_type' => 'post', 'author' => '3', 'orderby' => 'date'];
+
+        try {
+            $this->assertSame($vars, (new AuthorArchives)->notFound($vars));
+        } finally {
+            set_current_screen('front');
+        }
+    }
+
+    /**
+     * The screen that broke: WP_Posts_List_Table forces `author=<id>` for a user
+     * without edit_others_posts, and wp_edit_posts_query() then runs the real
+     * `request` filter. An Author has to see their own posts.
+     */
+    public function test_an_author_sees_their_own_posts_in_the_admin_list(): void
+    {
+        require_once ABSPATH.'wp-admin/includes/post.php';
+        require_once ABSPATH.'wp-admin/includes/class-wp-list-table.php';
+        require_once ABSPATH.'wp-admin/includes/class-wp-posts-list-table.php';
+
+        $author = self::factory()->user->create(['role' => 'author']);
+        $post = self::factory()->post->create(['post_status' => 'publish', 'post_author' => $author]);
+        self::factory()->post->create(['post_status' => 'publish']);
+
+        wp_set_current_user($author);
+        set_current_screen('edit.php');
+
+        try {
+            $table = new WP_Posts_List_Table(['screen' => 'edit-post']);
+            $table->prepare_items();
+
+            $this->assertSame($author, (int) $_GET['author'], 'core forces the author filter for this role');
+            $this->assertFalse(is_404());
+            $this->assertSame([$post], wp_list_pluck($GLOBALS['wp_query']->posts, 'ID'));
+        } finally {
+            unset($_GET['author']);
+            set_current_screen('front');
+        }
     }
 
     public function test_core_drops_the_users_sitemap_and_keeps_the_rest(): void

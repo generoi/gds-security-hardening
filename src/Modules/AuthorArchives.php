@@ -36,12 +36,20 @@ class AuthorArchives implements Module
      * REST requests keep their query vars: `/wp-json/wp/v2/posts?author=N` is a
      * collection filter, not an archive.
      *
+     * So does the admin. Core runs wp() inside wp-admin to build its list tables
+     * (wp_edit_posts_query(), wp_edit_attachments_query()), which fires this
+     * filter on edit.php and upload.php, and WP_Posts_List_Table forces
+     * `author=<id>` for anyone without edit_others_posts. Rewriting those query
+     * vars empties an Author's Posts screen and the "Mine" and author-column
+     * views for everyone, and Yoast then reads an `orderby` that no longer
+     * exists, which Acorn turns into a 500.
+     *
      * @param  array<string, mixed>  $queryVars
      * @return array<string, mixed>
      */
     public function notFound(array $queryVars): array
     {
-        if (isset($queryVars['rest_route'])) {
+        if (is_admin() || isset($queryVars['rest_route'])) {
             return $queryVars;
         }
 

@@ -104,6 +104,9 @@ author archives, so `AuthorArchives` turns every author request into a 404 at
 `request` — the pretty URL, `?author=N` and `?author_name=`, POST bodies included —
 before `redirect_canonical()` or Yoast can answer an existing name differently.
 
+The admin is left alone: core runs `wp()` inside wp-admin to build its list
+tables, where `author=<id>` is the "Mine" filter, not an archive.
+
 A site that does use author archives drops the module; `UserEnumeration` still
 closes `?author=<id>` for it:
 
