@@ -5,6 +5,7 @@ namespace GeneroWP\SecurityHardening\Modules;
 use GeneroWP\SecurityHardening\Module;
 use WP_Error;
 use WP_REST_Request;
+use WP_REST_Users_Controller;
 
 /**
  * Enforce a minimum password length, server side.
@@ -39,9 +40,9 @@ class Passwords implements Module
         // WooCommerce's account-details save fires none of core's three.
         add_action('woocommerce_save_account_details_errors', [$this, 'validateProfileUpdate'], 10, 2);
 
-        // REST user create and update go through wp_insert_user(), which fires
-        // none of them either.
-        add_filter('rest_pre_insert_user', [$this, 'validateRestUser'], 10, 2);
+        // rest_pre_insert_user only transforms data; its caller does not check
+        // for WP_Error. Reject before the controller can write anything.
+        add_filter('rest_request_before_callbacks', [$this, 'validateRestUser'], 10, 3);
 
         add_action('admin_enqueue_scripts', [$this, 'enqueueHideWeakOptIn']);
     }
@@ -84,17 +85,32 @@ class Passwords implements Module
     }
 
     /**
-     * @return mixed WP_Error to refuse the write, the prepared user otherwise
+     * @param  array<string, mixed>  $handler
+     * @return mixed WP_Error to refuse the write, the previous response otherwise
      */
-    public function validateRestUser(mixed $prepared, mixed $request): mixed
+    public function validateRestUser(mixed $response, array $handler, WP_REST_Request $request): mixed
     {
-        $password = $request instanceof WP_REST_Request ? $request['password'] : null;
+        $callback = $handler['callback'] ?? null;
+        $controller = is_array($callback) ? ($callback[0] ?? null) : null;
 
-        if (! is_string($password) || $password === '') {
-            return $prepared;
+        if ($response instanceof WP_Error || ! $controller instanceof WP_REST_Users_Controller
+            || ! in_array($request->get_method(), ['POST', 'PUT', 'PATCH'], true)) {
+            return $response;
         }
 
-        return $this->validate($password) ?? $prepared;
+        $password = $request['password'];
+
+        if (! is_string($password) || $password === '') {
+            return $response;
+        }
+
+        $error = $this->validate($password);
+
+        if ($error) {
+            $error->add_data(['status' => 400]);
+        }
+
+        return $error ?? $response;
     }
 
     /**
