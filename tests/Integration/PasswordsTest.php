@@ -5,6 +5,7 @@ namespace GeneroWP\SecurityHardening\Tests\Integration;
 use GeneroWP\SecurityHardening\Modules\Passwords;
 use WP_Error;
 use WP_REST_Request;
+use WP_REST_Users_Controller;
 use WP_UnitTestCase;
 
 class PasswordsTest extends WP_UnitTestCase
@@ -79,16 +80,20 @@ class PasswordsTest extends WP_UnitTestCase
         $request = new WP_REST_Request('POST', '/wp/v2/users');
         $request->set_param('password', 'short');
 
-        $this->assertWPError($this->module->validateRestUser(new \stdClass, $request));
+        $handler = ['callback' => [new WP_REST_Users_Controller, 'create_item']];
+        $error = $this->module->validateRestUser(null, $handler, $request);
+
+        $this->assertWPError($error);
+        $this->assertSame(400, $error->get_error_data()['status']);
     }
 
     public function test_a_long_enough_rest_password_passes_through_untouched(): void
     {
         $request = new WP_REST_Request('POST', '/wp/v2/users');
         $request->set_param('password', str_repeat('a', 12));
-        $prepared = new \stdClass;
+        $handler = ['callback' => [new WP_REST_Users_Controller, 'create_item']];
 
-        $this->assertSame($prepared, $this->module->validateRestUser($prepared, $request));
+        $this->assertNull($this->module->validateRestUser(null, $handler, $request));
     }
 
     public function test_a_request_without_a_password_is_left_alone(): void
@@ -115,12 +120,18 @@ class PasswordsTest extends WP_UnitTestCase
         $response = rest_do_request($request);
 
         $this->assertTrue($response->is_error());
+        $this->assertSame(400, $response->get_status());
+        $this->assertSame('password_too_short', $response->get_data()['code']);
         $this->assertFalse((bool) username_exists('restshortpw'));
     }
 
     public function test_the_rest_users_route_accepts_a_long_enough_password(): void
     {
-        wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
+        $administrator = self::factory()->user->create(['role' => 'administrator']);
+        if (is_multisite()) {
+            grant_super_admin($administrator);
+        }
+        wp_set_current_user($administrator);
 
         $request = new WP_REST_Request('POST', '/wp/v2/users');
         $request->set_param('username', 'restlongpw');
@@ -134,6 +145,54 @@ class PasswordsTest extends WP_UnitTestCase
             'A valid password was refused: '.wp_json_encode($response->get_data()),
         );
         $this->assertNotFalse(username_exists('restlongpw'));
+    }
+
+    public function test_rest_updates_reject_the_whole_write_instead_of_reporting_success(): void
+    {
+        $user = self::factory()->user->create_and_get(['role' => 'subscriber']);
+        wp_set_current_user($user->ID);
+
+        foreach (['/wp/v2/users/'.$user->ID, '/wp/v2/users/me'] as $route) {
+            $request = new WP_REST_Request('POST', $route);
+            $request->set_param('password', 'short');
+            $request->set_param('name', 'Must not be saved');
+            $response = rest_do_request($request);
+
+            $this->assertSame(400, $response->get_status());
+            $this->assertSame('password_too_short', $response->get_data()['code']);
+            $this->assertSame($user->user_pass, get_userdata($user->ID)->user_pass);
+            $this->assertSame($user->display_name, get_userdata($user->ID)->display_name);
+        }
+    }
+
+    public function test_rest_updates_accept_valid_passwords_and_passwordless_profile_changes(): void
+    {
+        $user = self::factory()->user->create_and_get(['role' => 'subscriber']);
+        wp_set_current_user($user->ID);
+        $request = new WP_REST_Request('POST', '/wp/v2/users/me');
+        $request->set_param('password', self::STRONG_PASSWORD);
+        $response = rest_do_request($request);
+        $this->assertSame(200, $response->get_status());
+        $this->assertTrue(wp_check_password(self::STRONG_PASSWORD, get_userdata($user->ID)->user_pass, $user->ID));
+
+        $request = new WP_REST_Request('POST', '/wp/v2/users/me');
+        $request->set_param('name', 'Updated name');
+        $this->assertSame(200, rest_do_request($request)->get_status());
+        $this->assertSame('Updated name', get_userdata($user->ID)->display_name);
+    }
+
+    public function test_rest_validation_preserves_prior_results_and_ignores_other_controllers(): void
+    {
+        $request = new WP_REST_Request('POST', '/wp/v2/users');
+        $request->set_param('password', 'short');
+        $handler = ['callback' => [new WP_REST_Users_Controller, 'create_item']];
+        $error = new WP_Error('other_error', 'Existing rejection', ['status' => 403]);
+        $this->assertSame($error, $this->module->validateRestUser($error, $handler, $request));
+        $this->assertWPError($this->module->validateRestUser(false, $handler, $request));
+        $this->assertWPError($this->module->validateRestUser(true, $handler, $request));
+        $this->assertNull($this->module->validateRestUser(null, ['callback' => '__return_true'], $request));
+        $request->set_method('GET');
+        $this->assertNull($this->module->validateRestUser(null, $handler, $request));
     }
 
     /**
