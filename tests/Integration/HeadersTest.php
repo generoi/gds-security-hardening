@@ -9,6 +9,68 @@ use WP_UnitTestCase;
 
 class HeadersTest extends WP_UnitTestCase
 {
+    public function test_https_frontend_receives_hsts_without_privileged_frame_restrictions(): void
+    {
+        $previous = $_SERVER['HTTPS'] ?? null;
+        $_SERVER['HTTPS'] = 'on';
+        try {
+            $headers = apply_filters('wp_headers', ['Content-Type' => 'text/html'], $GLOBALS['wp']);
+            $this->assertSame(Headers::STRICT_TRANSPORT_SECURITY, $headers['Strict-Transport-Security']);
+            $this->assertSame('text/html', $headers['Content-Type']);
+            $this->assertSame('nosniff', $headers['X-Content-Type-Options']);
+            $this->assertArrayNotHasKey('X-Frame-Options', $headers);
+        } finally {
+            if ($previous === null) {
+                unset($_SERVER['HTTPS']);
+            } else {
+                $_SERVER['HTTPS'] = $previous;
+            }
+        }
+    }
+
+    public function test_http_frontend_does_not_receive_hsts(): void
+    {
+        $previousHttps = $_SERVER['HTTPS'] ?? null;
+        $previousPort = $_SERVER['SERVER_PORT'] ?? null;
+        $_SERVER['HTTPS'] = 'off';
+        $_SERVER['SERVER_PORT'] = '80';
+        try {
+            $headers = apply_filters('wp_headers', [], $GLOBALS['wp']);
+            $this->assertArrayNotHasKey('Strict-Transport-Security', $headers);
+            $this->assertSame('nosniff', $headers['X-Content-Type-Options']);
+        } finally {
+            foreach (['HTTPS' => $previousHttps, 'SERVER_PORT' => $previousPort] as $key => $value) {
+                if ($value === null) {
+                    unset($_SERVER[$key]);
+                } else {
+                    $_SERVER[$key] = $value;
+                }
+            }
+        }
+    }
+
+    public function test_frontend_uses_the_package_header_customization_filter(): void
+    {
+        $seen = [];
+        $callback = function (array $headers, bool $privileged) use (&$seen): array {
+            $seen[] = $privileged;
+            $headers['Referrer-Policy'] = 'no-referrer';
+            $headers['X-Site-Policy'] = 'custom';
+
+            return $headers;
+        };
+        add_filter('gds_security_hardening_headers', $callback, 10, 2);
+        try {
+            $headers = apply_filters('wp_headers', ['X-Existing' => 'preserved'], $GLOBALS['wp']);
+            $this->assertSame([false], $seen);
+            $this->assertSame('no-referrer', $headers['Referrer-Policy']);
+            $this->assertSame('custom', $headers['X-Site-Policy']);
+            $this->assertSame('preserved', $headers['X-Existing']);
+        } finally {
+            remove_filter('gds_security_hardening_headers', $callback);
+        }
+    }
+
     /**
      * Core deliberately does not send X-Frame-Options on the frontend: a site may
      * legitimately be embedded elsewhere. Asserting it there breaks those embeds.
