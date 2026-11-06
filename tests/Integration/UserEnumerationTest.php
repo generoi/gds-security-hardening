@@ -151,6 +151,26 @@ class UserEnumerationTest extends WP_UnitTestCase
         $this->assertArrayHasKey('title', $data);
     }
 
+    /**
+     * GTM4WP is not installed in the test environment, so this applies its
+     * filter with the keys its PageVariables module writes. The module is
+     * registered by the plugin bootstrap, so this does fail if the hook is
+     * dropped or renamed.
+     */
+    public function test_the_gtm4wp_data_layer_carries_no_author_name(): void
+    {
+        $data = apply_filters('gtm4wp_compile_datalayer', [
+            'pagePostType' => 'post',
+            'pagePostAuthorID' => 1,
+            'pagePostAuthor' => 'admin',
+            'pagePostAuthors' => ['admin', 'editor'],
+        ]);
+
+        $this->assertArrayNotHasKey('pagePostAuthor', $data);
+        $this->assertArrayNotHasKey('pagePostAuthors', $data);
+        $this->assertSame(['pagePostType' => 'post', 'pagePostAuthorID' => 1], $data);
+    }
+
     protected function pageLinks(): array
     {
         $page = self::factory()->post->create([

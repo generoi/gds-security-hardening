@@ -19,7 +19,7 @@ composer require generoi/gds-security-hardening
 | `ApplicationPasswords` | Closes the remote authorization flow; keeps passwords to `manage_options` |
 | `Headers` | HSTS (no `preload`), nosniff, X-Frame-Options, Referrer-Policy on frontend, admin, login **and REST** |
 | `Uploads` | Keeps parser-heavy formats (PDF/EPS/SVG/HEIC/TIFF/macro-Office) to editors and above |
-| `UserEnumeration` | Blocks `?author=<id>`, `/wp/v2/users*` and the REST `_embed` author link for anonymous callers; strips the author from oEmbed; makes authentication, login and lost-password responses uniform |
+| `UserEnumeration` | Blocks `?author=<id>`, `/wp/v2/users*` and the REST `_embed` author link for anonymous callers; strips the author from oEmbed and the GTM4WP data layer; makes authentication, login and lost-password responses uniform |
 | `AuthorArchives` | Every author archive is a 404, existing name or not; drops core's users sitemap and Yoast's author sitemap |
 | `Embeds` | Turns off oEmbed discovery, so embeds come only from registered providers |
 | `Passwords` | 12-character minimum, enforced **server side** |
