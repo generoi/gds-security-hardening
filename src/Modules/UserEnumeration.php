@@ -30,6 +30,9 @@ class UserEnumeration implements Module
 
         add_filter('rest_endpoints', [$this, 'hideUsersRoutes']);
         add_filter('oembed_response_data', [$this, 'dropOembedAuthor']);
+
+        // PHP_INT_MAX: after every GTM4WP module that adds to the data layer.
+        add_filter('gtm4wp_compile_datalayer', [$this, 'dropDataLayerAuthor'], PHP_INT_MAX);
     }
 
     /**
@@ -78,6 +81,25 @@ class UserEnumeration implements Module
         unset($data['author_name'], $data['author_url']);
 
         return $data;
+    }
+
+    /**
+     * GTM4WP prints the author's display name as pagePostAuthor (and, with
+     * PublishPress Authors, every name as pagePostAuthors) in the page source.
+     * An account that never set a display name shows its login there, on every
+     * page it authored.
+     *
+     * The author ID is left alone: it is not the login, and ?author=<id> is
+     * closed above.
+     *
+     * @param  array<string, mixed>  $dataLayer
+     * @return array<string, mixed>
+     */
+    public function dropDataLayerAuthor(array $dataLayer): array
+    {
+        unset($dataLayer['pagePostAuthor'], $dataLayer['pagePostAuthors']);
+
+        return $dataLayer;
     }
 
     /**
