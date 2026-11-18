@@ -40,6 +40,8 @@ tests_add_filter('muplugins_loaded', function (): void {
         '/woocommerce/woocommerce.php',
         '/two-factor.latest-stable/two-factor.php',
         '/two-factor/two-factor.php',
+        '/wp-saml-auth.latest-stable/wp-saml-auth.php',
+        '/wp-saml-auth/wp-saml-auth.php',
     ] as $plugin) {
         if (file_exists($plugins.$plugin)) {
             require_once $plugins.$plugin;
