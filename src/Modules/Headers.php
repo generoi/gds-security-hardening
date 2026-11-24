@@ -57,8 +57,13 @@ class Headers implements Module
      * lists, and getting off them again is practically irreversible. That is a
      * decision for whoever owns the domain, not something a package should sign
      * every site up for from wp-admin responses.
+     *
+     * No `includeSubDomains` either: a package can't know a domain's other
+     * hosts, and one on another server without a certificate would be
+     * unreachable for two years to anyone who visited the site. A site that
+     * knows all its subdomains serve HTTPS adds it through the headers filter.
      */
-    public const STRICT_TRANSPORT_SECURITY = 'max-age=63072000; includeSubDomains';
+    public const STRICT_TRANSPORT_SECURITY = 'max-age=63072000';
 
     public function register(): void
     {

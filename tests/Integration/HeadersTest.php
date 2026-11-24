@@ -106,6 +106,15 @@ class HeadersTest extends WP_UnitTestCase
         $this->assertStringNotContainsString('preload', Headers::STRICT_TRANSPORT_SECURITY);
     }
 
+    /**
+     * The package can't know which hosts a domain has: a subdomain on another
+     * server without a certificate must stay reachable.
+     */
+    public function test_hsts_leaves_subdomains_alone(): void
+    {
+        $this->assertStringNotContainsStringIgnoringCase('includeSubDomains', Headers::STRICT_TRANSPORT_SECURITY);
+    }
+
     public function test_the_headers_are_filterable(): void
     {
         $callback = fn (array $headers) => [...$headers, 'X-Test' => 'value'];
