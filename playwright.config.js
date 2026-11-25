@@ -12,6 +12,9 @@ export default defineConfig({
     workers: 1,
     reporter: process.env.CI ? 'github' : 'list',
     use: {
+        // The installed Google Chrome, not the Chromium bundled with the pinned
+        // @playwright/test, so the browser stays patched. GitHub's runners ship it.
+        channel: 'chrome',
         baseURL: process.env.WP_BASE_URL || 'http://localhost:8888',
         trace: 'retain-on-failure',
     },
