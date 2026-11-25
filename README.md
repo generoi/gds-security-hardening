@@ -34,6 +34,7 @@ Off by default, opt in with the modules filter:
 | Module | Control |
 |---|---|
 | `TwoFactor` | Requires two-factor enrolment before any capability but `read` |
+| `SingleSignOn` | Lets a wp-saml-auth login stand in for the password and the second factor; refuses the password of an account marked as requiring single sign-on |
 
 ### A password reset revokes nothing in core
 
@@ -155,6 +156,26 @@ It applies to every logged-in user. Narrow it with
 `gds_security_hardening_two_factor_required` on a site with WooCommerce
 customers or integration users — see `TwoFactor::FILTER_REQUIRED`.
 
+`SingleSignOn` is off by default because it only means something next to
+[wp-saml-auth](https://wordpress.org/plugins/wp-saml-auth/) and an identity
+provider the site has configured through that plugin's `wp_saml_auth_option`
+filter. The connection is the site's; this module is the policy around it:
+
+- A super admin (an administrator on single site) can tick *Require single
+  sign-on* on an account's profile. Its password and application passwords are
+  then refused at `authenticate`, on wp-login.php and WooCommerce's my-account
+  form alike, and its other sessions are destroyed.
+- A SAML login skips the two-factor plugin's challenge, through two-factor's
+  `two_factor_is_required_for_user`: the identity provider ran its own MFA.
+- The session is marked as single sign-on, so `TwoFactor` treats it as
+  enrolled. The same administrator signing in with a password is enforced as
+  before.
+
+Without wp-saml-auth loaded it is inert, so an account requiring single sign-on
+falls back to its password rather than being locked out. To recover from a
+broken identity provider with the plugin still active:
+`wp user meta delete <user> gds_security_hardening_sso_required`.
+
 ### The CSP is asymmetric on purpose
 
 **wp-admin** gets only directives that need no per-site verification, and says
@@ -221,9 +242,10 @@ npm run test:e2e    # playwright against the running site
 ```
 
 The test environment installs the plugins the controls actually have to work
-with — `woocommerce`, `two-factor`, `limit-login-attempts-reloaded`, `wordfence`
-and `polylang` — and `tests/bootstrap.php` loads WooCommerce and two-factor into
-the phpunit run. Several controls exist *because* of what those plugins do, so
+with — `woocommerce`, `two-factor`, `wp-saml-auth`,
+`limit-login-attempts-reloaded`, `wordfence` and `polylang` — and
+`tests/bootstrap.php` loads WooCommerce, two-factor and wp-saml-auth into the
+phpunit run. Several controls exist *because* of what those plugins do, so
 testing them against doubles would assert our reading of the plugin rather than
 the plugin.
 
